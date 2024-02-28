@@ -25,7 +25,7 @@
  * define which filter to use.
  */
 
-#include "modules/orange_avoider/group1_test_avoider.h"
+#include "modules/group1_test_bebop/group1_test_avoider.h"
 #include "firmwares/rotorcraft/guidance/guidance_h.h"
 #include "generated/airframe.h"
 #include "state.h"
