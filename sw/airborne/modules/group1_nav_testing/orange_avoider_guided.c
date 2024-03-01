@@ -55,7 +55,9 @@ enum navigation_state_t {
 // define settings
 float oag_color_count_frac = 0.18f;       // obstacle detection threshold as a fraction of total of image
 float oag_floor_count_frac = 0.05f;       // floor detection threshold as a fraction of total of image
-float oag_max_speed = 0.5f;               // max flight speed [m/s]
+float oag_max_speed = 0.5f;             // max flight speed [m/s]
+float oag_max_rot_rate = 20.f;          // max rotational speed [rad/s]
+
 float oag_heading_rate = RadOfDeg(20.f);  // heading change setpoint for avoidance [rad/s]
 
 // define and initialise global variables
@@ -135,13 +137,14 @@ void orange_avoider_guided_periodic(void)
   if(color_count < color_count_threshold){
     obstacle_free_confidence++;
   } else {
-    obstacle_free_confidence -= 2;  // be more cautious with positive obstacle detections
+    obstacle_free_confidence -= 2;  
   }
 
   // bound obstacle_free_confidence
   Bound(obstacle_free_confidence, 0, max_trajectory_confidence);
 
   float speed_sp = fminf(oag_max_speed, 0.2f * obstacle_free_confidence);
+  float heading_rate = RadOfDeg(fmaxf(0, oag_max_rot_rate-5.0f*obstacle_free_confidence));
 
   switch (navigation_state){
     case SAFE:
@@ -150,6 +153,7 @@ void orange_avoider_guided_periodic(void)
       } else if (obstacle_free_confidence == 0){
         navigation_state = OBSTACLE_FOUND;
       } else {
+        guidance_h_set_heading_rate(heading_rate)
         guidance_h_set_body_vel(speed_sp, 0);
       }
 

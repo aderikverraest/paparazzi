@@ -41,7 +41,7 @@ define which filter to use.
     <file name="orange_avoider_guided.h"/>
   </header>
   <init fun="orange_avoider_guided_init()"/>
-  <periodic fun="orange_avoider_guided_periodic()" freq="4"/>
+  <periodic fun="orange_avoider_guided_periodic()" freq="100"/>
   <makefile target="ap|nps">
     <file name="orange_avoider_guided.c"/>
   </makefile>
