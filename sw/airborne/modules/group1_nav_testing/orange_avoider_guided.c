@@ -27,7 +27,6 @@
 
 #include "modules/orange_avoider/orange_avoider_guided.h"
 #include "firmwares/rotorcraft/guidance/guidance_h.h"
-#include "firmwares/rotorcraft/guidance/guidance_v.h"
 #include "generated/airframe.h"
 #include "state.h"
 #include "modules/core/abi.h"
@@ -141,7 +140,7 @@ void orange_avoider_guided_periodic(void)
 
   // bound obstacle_free_confidence
   Bound(obstacle_free_confidence, 0, max_trajectory_confidence);
-  
+
   float speed_sp = fminf(oag_max_speed, 0.2f * obstacle_free_confidence);
 
   switch (navigation_state){
@@ -151,8 +150,6 @@ void orange_avoider_guided_periodic(void)
       } else if (obstacle_free_confidence == 0){
         navigation_state = OBSTACLE_FOUND;
       } else {
-        // Fly in circles
-        guidance_h_set_heading_rate(0.2);
         guidance_h_set_body_vel(speed_sp, 0);
       }
 
@@ -160,8 +157,6 @@ void orange_avoider_guided_periodic(void)
     case OBSTACLE_FOUND:
       // stop
       guidance_h_set_body_vel(0, 0);
-      // guidance_v_guided_run()
-
 
       // randomly select new search direction
       chooseRandomIncrementAvoidance();
