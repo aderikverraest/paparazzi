@@ -39,8 +39,7 @@ struct output_variables_object
 static pthread_mutex_t mutex;
 
 // Define Global Memory
-struct output_variables_object global_memory;
-struct
+struct output_variables_object global_memory[1];
 
 // Filter Thresholds (Default values if not defined in conf file)
 
@@ -79,17 +78,18 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 
     // Update Global memory
     pthread_mutex_lock(&mutex);
-    global_filters.nav_command = nav_command
-    global_filters.pixel_count = count;
-    global_filters.updated = true;
+    global_memory[0].nav_command = nav_command;
+    global_memory[0].pixel_count = count;
+    global_memory[0].updated = true;
     pthread_mutex_unlock(&mutex);
+
 
     return img;
 }
 
 void cascade_filter_init(void)
 {
-    memset(global_filters, 0, sizeof(struct output_variables_object));
+    memset(global_memory, 0, sizeof(struct output_variables_object));
     pthread_mutex_init(&mutex, NULL);
 #ifdef CASCADE_FILTER_CAMERA
     #ifdef CASCADE_FILTER_LUM_THRESH_MIN
@@ -112,20 +112,20 @@ void cascade_filter_init(void)
 // PERIODIC FUNCTION
 void cascade_filter_periodic(void)
 {
-    static struct output_variables_object local_memory; // Defines an array of structures of type "output_variables_object"
+    static struct output_variables_object local_memory[1]; // Defines an array of structures of type "output_variables_object"
     pthread_mutex_lock(&mutex);                    // It ensures that no other thread can modify the shared data while this function is executing.
     memcpy(local_memory, global_memory, sizeof(struct output_variables_object)); // Copies the global filters into the local filters.
     pthread_mutex_unlock(&mutex);                  // Unlock previous lock
 
-    if(local_memory.updated){
+    if(local_memory[0].updated){
         // Might have to make custom message
-        AbiSendMsgVISUAL_DETECTION(CASCADE_FILTER_ID,
-                                   local_memory.nav_command, // called int16_t pixel_x
-                                   local_memory.pixel_count, // called int16_t pixel_y
+        AbiSendMsgVISUAL_DETECTION(CASCADE_FILTER_MSG_ID,
+                                   local_memory[0].nav_command, // called int16_t pixel_x
+                                   local_memory[0].pixel_count, // called int16_t pixel_y
                                    0,   // called int16_t pixel_width,
                                    0,   // called int16_t pixel_height,
                                    0,       // called int32_t quality,
                                    0);      // called int16_t extra
-        local_filters.updated = false;
+        local_memory[0].updated = false;
     }
 }

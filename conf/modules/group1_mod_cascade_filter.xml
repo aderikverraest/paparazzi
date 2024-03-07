@@ -1,0 +1,48 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="group1_mod_cascade_filter" dir="group1_cascade_filters">
+  <doc>
+    <description>Color Object Detector
+    Detects an object by a continuous color. Optionally draws on image.
+    
+    </description>
+    <define name="CASCADE_FILTER_CAMERA" value="front_camera|bottom_camera" description="Video device to use"/>
+    <define name="CASCADE_FILTER_FPS" value="0" description="Desired FPS (0: camera rate)"/>
+    <define name="CASCADE_FILTER_Y_THRESH_MIN" value="0" description="Filter 1 min luminance"/>
+    <define name="CASCADE_FILTER_Y_THRESH_MAX" value="0" description="Filter 1 max luminance"/>
+    <define name="CASCADE_FILTER_U_THRESH_MIN" value="0" description="Filter 1 min blue chroma"/>
+    <define name="CASCADE_FILTER_U_THRESH_MAX" value="0" description="Filter 1 max blue chroma"/>
+    <define name="CASCADE_FILTER_V_THRESH_MIN" value="0" description="Filter 1 min red chroma"/>
+    <define name="CASCADE_FILTER_V_THRESH_MAX" value="0" description="Filter 1 max red chroma"/>
+    <define name="CASCADE_FILTER_DRAW" value="FALSE|TRUE" description="Whether or not to draw on image"/>
+  </doc>
+
+  <settings>
+    <dl_settings>
+      <dl_settings name="CascadeFilter">
+         <dl_setting var="y_min" min="0" step="1" max="255" shortname="y_min"/>
+         <dl_setting var="y_max" min="0" step="1" max="255" shortname="y_max"/>
+         <dl_setting var="u_min"   min="0" step="1" max="255" shortname="u_min"/>
+         <dl_setting var="u_max"   min="0" step="1" max="255" shortname="u_max"/>
+         <dl_setting var="v_min"   min="0" step="1" max="255" shortname="v_min"/>
+         <dl_setting var="v_max"   min="0" step="1" max="255" shortname="v_max"/>
+         <dl_setting var="cf_draw"  min="0" step="1" max="1" values="False|True" shortname="cf_draw" />
+      </dl_settings>
+    </dl_settings>
+  </settings>
+
+  <dep>
+    <depends>video_thread</depends>
+  </dep>
+
+  <header>
+    <file name="g1_cascade_filter.h"/>
+  </header>
+
+  <init fun="cascade_filter_init()"/>
+  <periodic fun="cascade_filter_periodic()" freq="10"/>
+  <makefile target="ap|nps">
+    <file name="g1_cascade_filter.c"/>
+  </makefile>
+</module>
+

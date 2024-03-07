@@ -571,6 +571,10 @@
 #define COLOR_OBJECT_DETECTION2_ID 2
 #endif
 
+#ifndef CASCADE_FILTER_MSG_ID
+#define CASCADE_FILTER_MSG_ID 3
+#endif
+
 /*
  * JOYSTICK message (used for payload or control, but not as a RC)
  */

@@ -103,9 +103,10 @@ void cascade_avoid_periodic(void)
 
     switch (navigation_state){
         case SAFE:
-            if (floor_count < floor_count_threshold || fabsf(floor_centroid_frac) > 0.12){
-                navigation_state = OUT_OF_BOUNDS;
-            } else if (obstacle_free_confidence == 0){
+//            if (floor_count < floor_count_threshold || fabsf(floor_centroid_frac) > 0.12){
+//                navigation_state = OUT_OF_BOUNDS;
+//            }
+            if (obstacle_free_confidence == 0){
                 navigation_state = OBSTACLE_FOUND;
             } else {
                 // Fly in circles
