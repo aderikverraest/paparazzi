@@ -6,7 +6,7 @@
 
   <firmware name="rotorcraft">
     <target name="ap" board="bebop">
-      <define name="VIDEO_CAPTURE_PATH" value="~/paparazzi_images/real/"/>
+      <define name="VIDEO_CAPTURE_PATH" value="/home/maximecapelle/paparazzi_images/real/"/>
       <define name="LOGGER_FILE_PATH" value="/data/ftp/internal_000/log"/>
       <define name="MT9V117_TARGET_FPS" value="20"/>
       
@@ -21,16 +21,16 @@
     </target>
     <target name="nps" board="pc">
       <module name="fdm" type="gazebo"/>
-      <define name="VIDEO_CAPTURE_PATH" value="~/paparazzi_images/simulator/"/>
+      <define name="VIDEO_CAPTURE_PATH" value="/home/maximecapelle/paparazzi_images/simulator/"/>
       <define name="LOGGER_FILE_PATH" value="/tmp/paparazzi/log"/>
       
       <!-- Detect orange -->
-      <define name="CASCADE_FILTER_Y_THRESH_MIN" value="41"/>
-      <define name="CASCADE_FILTER_Y_THRESH_MAX" value="183"/>
-      <define name="CASCADE_FILTER_U_THRESH_MIN" value="53"/>
-      <define name="CASCADE_FILTER_U_THRESH_MAX" value="121"/>
-      <define name="CASCADE_FILTER_V_THRESH_MIN" value="134"/>
-      <define name="CASCADE_FILTER_V_THRESH_MAX" value="249"/>
+<!--      <define name="CASCADE_FILTER_Y_THRESH_MIN" value="41"/>-->
+<!--      <define name="CASCADE_FILTER_Y_THRESH_MAX" value="183"/>-->
+<!--      <define name="CASCADE_FILTER_U_THRESH_MIN" value="53"/>-->
+<!--      <define name="CASCADE_FILTER_U_THRESH_MAX" value="121"/>-->
+<!--      <define name="CASCADE_FILTER_V_THRESH_MIN" value="134"/>-->
+<!--      <define name="CASCADE_FILTER_V_THRESH_MAX" value="249"/>-->
     </target>
 
   <!-- Subsystem section -->

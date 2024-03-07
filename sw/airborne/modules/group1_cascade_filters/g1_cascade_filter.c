@@ -3,6 +3,7 @@
 //
 
 // Other files
+//#define OBJECT_DETECTOR_VERBOSE 1
 #include "modules/group1_cascade_filters/g1_cascade_filter.h"
 #include "modules/group1_cascade_filters/cv.h"
 #include "modules/core/abi.h"
@@ -44,19 +45,21 @@ struct output_variables_object global_memory[1];
 // Filter Thresholds (Default values if not defined in conf file)
 
 // Luma
-uint8_t y_min = 0;
-uint8_t y_max = 0;
+uint8_t y_min = 41;
+uint8_t y_max = 183;
 
 // Chroma Blue
-uint8_t u_min = 0;
-uint8_t u_max = 0;
+uint8_t u_min = 53;
+uint8_t u_max = 121;
 
 // Chroma Red
-uint8_t v_min = 0;
-uint8_t v_max = 0;
+uint8_t v_min = 134;
+uint8_t v_max = 249;
 
 // Drawing on image
-bool cf_draw = false;
+bool cf_draw = true;
+
+
 
 
       // Functions //
@@ -65,14 +68,12 @@ bool cf_draw = false;
     // Function Definitions
 static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 {
-    // Dummy img
-    struct image_t* process_img;
-
+    VERBOSE_PRINT("IN CASCADE FUNCTION");
     // Run Cascading filters
-    uint32_t count = image_yuv422_colorfilt(img, process_img, y_min, y_max, u_min, u_max, v_min, v_max);
+    uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
     image_to_grayscale(img, img);
-
     uint32_t nav_command = 0;
+//    uint32_t count = 32;
     VERBOSE_PRINT("Color count: %u  Nav Command: %u\n", count, nav_command);
 
 
@@ -89,6 +90,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 
 void cascade_filter_init(void)
 {
+    VERBOSE_PRINT("IN CASCADE FILTER INIT");
     memset(global_memory, 0, sizeof(struct output_variables_object));
     pthread_mutex_init(&mutex, NULL);
 #ifdef CASCADE_FILTER_CAMERA
@@ -112,19 +114,22 @@ void cascade_filter_init(void)
 // PERIODIC FUNCTION
 void cascade_filter_periodic(void)
 {
+
+
+    VERBOSE_PRINT("IN CASCADE FILTER PERIODIC");
     static struct output_variables_object local_memory[1]; // Defines an array of structures of type "output_variables_object"
     pthread_mutex_lock(&mutex);                    // It ensures that no other thread can modify the shared data while this function is executing.
-    memcpy(local_memory, global_memory, sizeof(struct output_variables_object)); // Copies the global filters into the local filters.
+    memcpy(local_memory, global_memory, sizeof(struct output_variables_object));; // Copies the global filters into the local filters.
     pthread_mutex_unlock(&mutex);                  // Unlock previous lock
 
     if(local_memory[0].updated){
         // Might have to make custom message
         AbiSendMsgVISUAL_DETECTION(CASCADE_FILTER_MSG_ID,
                                    local_memory[0].nav_command, // called int16_t pixel_x
-                                   local_memory[0].pixel_count, // called int16_t pixel_y
+                                   0, // called int16_t pixel_y
                                    0,   // called int16_t pixel_width,
                                    0,   // called int16_t pixel_height,
-                                   0,       // called int32_t quality,
+                                   local_memory[0].pixel_count,       // called int32_t quality,
                                    0);      // called int16_t extra
         local_memory[0].updated = false;
     }

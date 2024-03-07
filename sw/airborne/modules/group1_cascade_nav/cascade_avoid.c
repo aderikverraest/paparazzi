@@ -1,7 +1,7 @@
 //
 // Created by maximecapelle on 7-3-24.
 //
-
+//#define ORANGE_AVOIDER_VERBOSE 1
 #include "modules/group1_cascade_nav/cascade_avoid.h"
 #include "firmwares/rotorcraft/guidance/guidance_h.h"
 #include "generated/airframe.h"
@@ -31,6 +31,7 @@ enum navigation_state_t {
     REENTER_ARENA
 };
 
+
 // DECLARE FUNCTIONS
 uint8_t chooseRandomIncrementAvoidance(void);
 
@@ -56,17 +57,18 @@ int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that 
 #endif
 static abi_event cascade_filter_ev;
 static void cascade_filter_cb(uint8_t __attribute__((unused)) sender_id,
-                               int16_t pixel_x, int16_t pixel_y,
+                               int16_t pixel_x, int16_t __attribute__((unused)) pixel_y,
                                int16_t __attribute__((unused)) pixel_width, int16_t __attribute__((unused)) pixel_height,
-                               int32_t __attribute__((unused)) quality, int16_t __attribute__((unused)) extra)
+                               int32_t quality, int16_t __attribute__((unused)) extra)
 {
     nav_command = pixel_x;
-    color_count = pixel_y;
+    color_count = quality;
 }
 
 // INIT FUNCTION
 void cascade_avoid_init(void)
 {
+    VERBOSE_PRINT("IN CASCADE AVOID INIT");
     // Initialise random values
     srand(time(NULL));
     chooseRandomIncrementAvoidance();
@@ -79,6 +81,7 @@ void cascade_avoid_init(void)
 // PERIODIC FUNCTION
 void cascade_avoid_periodic(void)
 {
+    VERBOSE_PRINT("IN CASCADE AVOID PERIODIC");
     // Only run the module if we are in the correct flight mode
     if (guidance_h.mode != GUIDANCE_H_MODE_GUIDED) {
         navigation_state = SEARCH_FOR_SAFE_HEADING;
@@ -88,7 +91,7 @@ void cascade_avoid_periodic(void)
 
     // compute current color thresholds
     int32_t color_count_threshold = oag_color_count_frac * front_camera.output_size.w * front_camera.output_size.h;
-    VERBOSE_PRINT("Color_count: %d  threshold: %d state: %d \n", color_count, color_count_threshold, navigation_state);
+    fprintf(stderr, "Color_count: %d  threshold: %d state: %d \n", color_count, color_count_threshold, navigation_state);
 
     // update our safe confidence using color threshold
     if(color_count < color_count_threshold){
