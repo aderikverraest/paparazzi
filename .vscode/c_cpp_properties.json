@@ -9,7 +9,8 @@
                 "limitSymbolsToIncludedHeaders": true
             },
             "includePath": [
-                "${workspaceFolder}"
+                "${workspaceFolder}",
+                "${workspaceFolder}/sw/airborne/modules/group1_cv_testing"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/arm-none-eabi-gcc",

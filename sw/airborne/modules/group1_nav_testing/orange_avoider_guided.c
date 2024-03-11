@@ -31,6 +31,7 @@
 #include "state.h"
 #include "modules/core/abi.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 #define ORANGE_AVOIDER_VERBOSE TRUE
@@ -53,12 +54,14 @@ enum navigation_state_t {
 };
 
 // define settings
-float oag_color_count_frac = 0.18f;       // obstacle detection threshold as a fraction of total of image
-float oag_floor_count_frac = 0.05f;       // floor detection threshold as a fraction of total of image
-float oag_max_speed = 0.5f;             // max flight speed [m/s]
-float oag_max_rot_rate = 20.f;          // max rotational speed [rad/s]
+float oag_color_count_frac = 0.3f;       // obstacle detection threshold as a fraction of total of image
+float oag_floor_count_frac = 0.02f;       // floor detection threshold as a fraction of total of image
+float oag_color_count_turning_frac = 0.18f;
+float oag_max_speed = 0.3f;             // max flight speed [m/s]
+float oag_min_speed = 0.1f;
+float oag_max_rot_rate = 30.f;          // max rotational speed [rad/s]
 
-float oag_heading_rate = RadOfDeg(20.f);  // heading change setpoint for avoidance [rad/s]
+float oag_heading_rate = RadOfDeg(10.f);  // heading change setpoint for avoidance [rad/s]
 
 // define and initialise global variables
 enum navigation_state_t navigation_state = SEARCH_FOR_SAFE_HEADING;   // current state in state machine
@@ -67,8 +70,9 @@ int32_t floor_count = 0;                // green color count from color filter f
 int32_t floor_centroid = 0;             // floor detector centroid in y direction (along the horizon)
 float avoidance_heading_direction = 0;  // heading change direction for avoidance [rad/s]
 int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that the way ahead if safe.
+int16_t obstacle_free_confidence_turning = 0;
 
-const int16_t max_trajectory_confidence = 5;  // number of consecutive negative object detections to be sure we are obstacle free
+const int16_t max_trajectory_confidence = 6;  // number of consecutive negative object detections to be sure we are obstacle free
 
 // This call back will be used to receive the color count from the orange detector
 #ifndef ORANGE_AVOIDER_VISUAL_DETECTION_ID
@@ -117,7 +121,7 @@ void orange_avoider_guided_init(void)
  */
 void orange_avoider_guided_periodic(void)
 {
-  // Only run the mudule if we are in the correct flight mode
+  // Only run the module if we are in the correct flight mode
   if (guidance_h.mode != GUIDANCE_H_MODE_GUIDED) {
     navigation_state = SEARCH_FOR_SAFE_HEADING;
     obstacle_free_confidence = 0;
@@ -127,24 +131,40 @@ void orange_avoider_guided_periodic(void)
   // compute current color thresholds
   int32_t color_count_threshold = oag_color_count_frac * front_camera.output_size.w * front_camera.output_size.h;
   int32_t floor_count_threshold = oag_floor_count_frac * front_camera.output_size.w * front_camera.output_size.h;
+  int32_t color_count_turning_threshold = oag_color_count_turning_frac * front_camera.output_size.w * front_camera.output_size.h;
   float floor_centroid_frac = floor_centroid / (float)front_camera.output_size.h / 2.f;
 
+  // VERBOSE_PRINT("Navigation State: %s", getNavigationStateString(navigation_state));
   VERBOSE_PRINT("Color_count: %d  threshold: %d state: %d \n", color_count, color_count_threshold, navigation_state);
   VERBOSE_PRINT("Floor count: %d, threshold: %d\n", floor_count, floor_count_threshold);
   VERBOSE_PRINT("Floor centroid: %f\n", floor_centroid_frac);
 
   // update our safe confidence using color threshold
-  if(color_count < color_count_threshold){
+
+  if(abs(color_count) < color_count_turning_threshold){
+    obstacle_free_confidence_turning++;
+  } else {
+    obstacle_free_confidence_turning -= 3;  
+  }
+
+  Bound(obstacle_free_confidence_turning, 0, max_trajectory_confidence);
+
+  if(abs(color_count) < color_count_threshold){
     obstacle_free_confidence++;
   } else {
     obstacle_free_confidence -= 2;  
   }
+  VERBOSE_PRINT("Obstacle_free_confidence: %d \n", obstacle_free_confidence);
 
   // bound obstacle_free_confidence
   Bound(obstacle_free_confidence, 0, max_trajectory_confidence);
 
-  float speed_sp = fminf(oag_max_speed, 0.2f * obstacle_free_confidence);
-  float heading_rate = RadOfDeg(fmaxf(0, oag_max_rot_rate-5.0f*obstacle_free_confidence));
+  float speed_sp = fminf(oag_max_speed, 0.2f * obstacle_free_confidence) + oag_min_speed;
+  float heading_rate_flight = (color_count/abs(color_count))*RadOfDeg(fmaxf(0, oag_max_rot_rate-5.0f*obstacle_free_confidence_turning));
+  float default_heading_rate = (color_count/abs(color_count))*RadOfDeg(20);
+
+  VERBOSE_PRINT("FLIGHT HEADING RATE: %f\n", heading_rate_flight);
+  VERBOSE_PRINT("SPEED: %f\n", speed_sp);
 
   switch (navigation_state){
     case SAFE:
@@ -153,27 +173,26 @@ void orange_avoider_guided_periodic(void)
       } else if (obstacle_free_confidence == 0){
         navigation_state = OBSTACLE_FOUND;
       } else {
-        guidance_h_set_heading_rate(heading_rate)
+
+        guidance_h_set_heading_rate(heading_rate_flight);
         guidance_h_set_body_vel(speed_sp, 0);
       }
 
       break;
     case OBSTACLE_FOUND:
-      // stop
-      guidance_h_set_body_vel(0, 0);
-
-      // randomly select new search direction
-      chooseRandomIncrementAvoidance();
+      // Slow down
+      guidance_h_set_body_vel(oag_min_speed, 0);
+      guidance_h_set_heading_rate(heading_rate_flight);
 
       navigation_state = SEARCH_FOR_SAFE_HEADING;
 
       break;
     case SEARCH_FOR_SAFE_HEADING:
-      guidance_h_set_heading_rate(avoidance_heading_direction * oag_heading_rate);
+      guidance_h_set_heading_rate(default_heading_rate);
 
       // make sure we have a couple of good readings before declaring the way safe
-      if (obstacle_free_confidence >= 2){
-        guidance_h_set_heading(stateGetNedToBodyEulers_f()->psi);
+      if (obstacle_free_confidence >= 3){
+        // guidance_h_set_heading(stateGetNedToBodyEulers_f()->psi);
         navigation_state = SAFE;
       }
       break;
@@ -182,8 +201,7 @@ void orange_avoider_guided_periodic(void)
       guidance_h_set_body_vel(0, 0);
 
       // start turn back into arena
-      guidance_h_set_heading_rate(avoidance_heading_direction * RadOfDeg(15));
-
+      guidance_h_set_heading_rate(default_heading_rate);
       navigation_state = REENTER_ARENA;
 
       break;
@@ -191,7 +209,7 @@ void orange_avoider_guided_periodic(void)
       // force floor center to opposite side of turn to head back into arena
       if (floor_count >= floor_count_threshold && avoidance_heading_direction * floor_centroid_frac >= 0.f){
         // return to heading mode
-        guidance_h_set_heading(stateGetNedToBodyEulers_f()->psi);
+        guidance_h_set_heading_rate(default_heading_rate);
 
         // reset safe counter
         obstacle_free_confidence = 0;
