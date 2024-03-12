@@ -6,6 +6,7 @@
 //#define OBJECT_DETECTOR_VERBOSE 1
 #include "modules/group1_cascade_filters/g1_cascade_filter.h"
 #include "modules/group1_cascade_filters/cv.h"
+#include "modules/group1_cascade_filters/group_1_cv.h"
 #include "modules/core/abi.h"
 #include "modules/computer_vision/lib/vision/image.h"
 
@@ -72,10 +73,25 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     // Run Cascading filters
     uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
     image_to_grayscale(img, img);
-    uint32_t nav_command = 0;
+
+    int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
+    for (int i = 0; i < 4; ++i) {
+        image_convolution(img, img, kernel_gaussian, 16);
+    }
+
+    int_fast8_t* kernel_edge = (int_fast8_t*) malloc(8*sizeof(int_fast8_t));
+    generate_kernel(img->eulers, kernel_edge);
+    image_convolution(img, img, kernel_edge, 8);
+
+    int* output = (int*) calloc(img->w, sizeof(int));
+    unaligned_sum(struct image_t *input, int *output, img->eulers, 0);
+
+    int xMin, xMax;
+    heading_command(output, img->w, &xMin, &xMax);
+
+    uint32_t nav_command = (xMin + xMax / 2); // Pixel direction
 //    uint32_t count = 32;
     VERBOSE_PRINT("Color count: %u  Nav Command: %u\n", count, nav_command);
-
 
     // Update Global memory
     pthread_mutex_lock(&mutex);
