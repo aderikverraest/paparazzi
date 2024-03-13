@@ -80,11 +80,11 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     }
 
     int_fast8_t* kernel_edge = (int_fast8_t*) malloc(8*sizeof(int_fast8_t));
-    generate_kernel(img->eulers, kernel_edge);
+    generate_kernel(&img->eulers, kernel_edge);
     image_convolution(img, img, kernel_edge, 8);
 
     int* output = (int*) calloc(img->w, sizeof(int));
-    unaligned_sum(struct image_t *input, int *output, img->eulers, 0);
+    unaligned_sum(img, output, &img->eulers, 0);
 
     int xMin, xMax;
     heading_command(output, img->w, &xMin, &xMax);
