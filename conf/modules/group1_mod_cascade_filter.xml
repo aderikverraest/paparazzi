@@ -43,6 +43,7 @@
   <periodic fun="cascade_filter_periodic()" freq="10"/>
   <makefile target="ap|nps">
     <file name="g1_cascade_filter.c"/>
+    <file name="group_1_cv.c"/>
   </makefile>
 </module>
 
