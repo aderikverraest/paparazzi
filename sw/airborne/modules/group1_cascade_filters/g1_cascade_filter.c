@@ -89,6 +89,22 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     int xMin, xMax;
     heading_command(output, img->w, &xMin, &xMax);
 
+    struct point_t Xmin;
+    Xmin.x = xMin;
+    Xmin.y = (int) round(img->h / 2);
+
+    struct point_t Xmax;
+    Xmax.x = xMax;
+    Xmax.y = Xmin.y;
+
+    struct point_t Xmid;
+    Xmid.x = (int) ((xMin + xMax) / 2);
+    Xmid.y = Xmin.y;
+
+    image_draw_line(img, &Xmin, &Xmax);
+    uint8_t color[4] = {127, 255, 127, 255};
+    image_draw_crosshair(img, &Xmid, color, 10);
+
     uint32_t nav_command = (xMin + xMax / 2); // Pixel direction
 //    uint32_t count = 32;
     VERBOSE_PRINT("Color count: %u  Nav Command: %u\n", count, nav_command);
