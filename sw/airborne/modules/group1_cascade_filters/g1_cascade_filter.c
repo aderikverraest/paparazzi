@@ -58,20 +58,125 @@ uint8_t v_max = 249;
 
 // Drawing on image
 bool cf_draw = true;
+uint8_t y_ground_mask = 255;
+uint8_t u_ground_mask = 123;
+uint8_t v_ground_mask = 123;
 
+uint8_t cod_lum_min1 = 0;
+uint8_t cod_lum_max1 = 0;
+uint8_t cod_cb_min1 = 0;
+uint8_t cod_cb_max1 = 0;
+uint8_t cod_cr_min1 = 0;
+uint8_t cod_cr_max1 = 0;
+
+uint8_t cod_lum_min2 = 0;
+uint8_t cod_lum_max2 = 0;
+uint8_t cod_cb_min2 = 0;
+uint8_t cod_cb_max2 = 0;
+uint8_t cod_cr_min2 = 0;
+uint8_t cod_cr_max2 = 0;
+bool cod_draw1 = false;
+bool cod_draw2 = false;
 
 
 
       // Functions //
     // Declarations
+struct image_t *image_ground_detector(struct image_t *img) {
+  //  return img;
+  uint8_t y_m = 0;
+  uint8_t y_M = 255;
+  uint8_t u_m = 0;
+  uint8_t u_M = 110;
+  uint8_t v_m = 0;
+  uint8_t v_M = 130;
+
+  uint16_t cnt = 0;
+  uint8_t *dest = (uint8_t *)img->buf;
+  uint8_t *yp, *up, *vp;
+  for (uint16_t y = 0; y < img->h; y++) {
+    for (uint16_t x = 0; x < img->w; x += 2) {
+      obtainYUV(img, dest, x, y, &yp, &up, &vp);
+      if (*yp >= y_m && *yp <= y_M && *up >= u_m && *up <= u_M && *vp >= v_m &&
+          *vp <= v_M) {
+        *yp = y_ground_mask;
+        *up = u_ground_mask;
+        *vp = v_ground_mask;
+      }
+    }
+  }
+  // Go trough all the pixels
+//  for (uint16_t y = 0; y < img->h; y++) {
+//    for (uint16_t x = 0; x < img->w; x += 2) {
+//      // Check if the color is inside the specified values
+//      if ((dest[1] >= y_m) && (dest[1] <= y_M) && (dest[0] >= u_m) &&
+//          (dest[0] <= u_M) && (dest[2] >= v_m) && (dest[2] <= v_M)) {
+//        cnt++;
+//        // UYVY
+//        dest[0] = u_ground_mask; // U
+//        dest[1] = y_ground_mask; // Y
+//        dest[2] = v_ground_mask; // V
+//        dest[3] = y_ground_mask; // Y
+//      }
+//
+//      // Go to the next 2 pixels
+//      dest += 4;
+//    }
+//  }
+  return img;
+}
+
+void obtainYUV(struct image_t *img, uint8_t *buffer, int x, int y, uint8_t **yp,
+               uint8_t **up, uint8_t **vp) {
+  if (x % 2 == 0) {
+    // Even x
+    *up = &buffer[y * 2 * img->w + 2 * x];     // U
+    *yp = &buffer[y * 2 * img->w + 2 * x + 1]; // Y1
+    *vp = &buffer[y * 2 * img->w + 2 * x + 2]; // V
+  } else {
+    // Uneven x
+    *up = &buffer[y * 2 * img->w + 2 * x - 2]; // U
+    *vp = &buffer[y * 2 * img->w + 2 * x];     // V
+    *yp = &buffer[y * 2 * img->w + 2 * x + 1]; // Y2
+  }
+}
+
+struct image_t *image_ground_filler(struct image_t *img) {
+  uint8_t *buffer = img->buf;
+
+  //  Only check up until horizon
+  uint16_t horizon = img->w / 2;
+  uint16_t top_x;
+  uint8_t *yp, *up, *vp;
+  for (uint16_t y = 0; y < img->h; y++) {
+    top_x = 0;
+    for (uint16_t x = 0; x < horizon; x += 1) {
+      obtainYUV(img, buffer, x, y, &yp, &up, &vp);
+      if (*yp == y_ground_mask && *up == u_ground_mask &&
+          *vp == v_ground_mask) {
+        top_x = x;
+      }
+    }
+
+    for (uint16_t x = 0; x < top_x; x += 1) {
+      obtainYUV(img, buffer, x, y, &yp, &up, &vp);
+      *yp = y_ground_mask;
+      *up = y_ground_mask;
+      *vp = y_ground_mask;
+    }
+  }
+  return img;
+}
 
     // Function Definitions
 static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 {
     VERBOSE_PRINT("IN CASCADE FUNCTION");
     // Run Cascading filters
-    uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
-    image_to_grayscale(img, img);
+//    uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
+//    image_to_grayscale(img, img);
+    image_ground_detector(img);
+    image_ground_filler(img);
     uint32_t nav_command = 0;
 //    uint32_t count = 32;
     VERBOSE_PRINT("Color count: %u  Nav Command: %u\n", count, nav_command);
@@ -80,7 +185,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     // Update Global memory
     pthread_mutex_lock(&mutex);
     global_memory[0].nav_command = nav_command;
-    global_memory[0].pixel_count = count;
+//    global_memory[0].pixel_count = count;
     global_memory[0].updated = true;
     pthread_mutex_unlock(&mutex);
 
