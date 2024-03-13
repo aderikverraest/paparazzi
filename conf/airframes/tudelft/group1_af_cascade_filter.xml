@@ -21,7 +21,7 @@
     </target>
     <target name="nps" board="pc">
       <module name="fdm" type="gazebo"/>
-      <define name="VIDEO_CAPTURE_PATH" value="/home/maximecapelle/paparazzi_images/simulator/"/>
+      <define name="VIDEO_CAPTURE_PATH" value="/home/daan/paparazzi_images/simulator/"/>
       <define name="LOGGER_FILE_PATH" value="/tmp/paparazzi/log"/>
       
       <!-- Detect orange -->

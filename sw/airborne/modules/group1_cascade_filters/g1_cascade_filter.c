@@ -70,39 +70,55 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 {
     VERBOSE_PRINT("IN CASCADE FUNCTION");
     // Run Cascading filters
-    uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
-    image_to_grayscale(img, img);
+//    uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
+    uint32_t count = 0;
 
-    fprintf(stderr, "Hallo");
+    struct image_t img2;
+    struct image_t img3;
+    image_create(&img2, img->w, img->h, img->type);
+    image_create(&img3, img->w, img->h, img->type);
+    image_copy(img, &img2);
+    image_copy(img, &img3);
+    image_to_grayscale(&img2, img);
+
     int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
-    for (int i = 0; i < 4; ++i) {
-        image_convolution(img, img, kernel_gaussian, 16);
+    image_convolution(img, &img2, kernel_gaussian, 16);
+    image_copy(&img2, img);
+
+
+    for (int i = 0; i < 2; ++i) {
+        image_convolution(img, &img2, kernel_gaussian, 16);
+        image_convolution(&img2, img, kernel_gaussian, 16);
     }
+    image_copy(img, &img3);
 
     int_fast8_t* kernel_edge = (int_fast8_t*) malloc(8*sizeof(int_fast8_t));
     generate_kernel(&img->eulers, kernel_edge);
-    image_convolution(img, img, kernel_edge, 8);
+    image_convolution(img, &img2, kernel_edge, 8);
     free(kernel_edge);
+    image_copy(&img2, img);
 
-    int* output = (int*) calloc(img->w, sizeof(int));
-    unaligned_sum(img, output, &img->eulers, 0);
+    int* output = (int*) calloc(img->h, sizeof(int));
+    unaligned_sum(&img2, output, &img->eulers, 1);
 
-    int xMin, xMax;
-    heading_command(output, img->w, &xMin, &xMax);
+    int xMin = 0;
+    int xMax = 0;
+    heading_command(output, img->h, &xMin, &xMax);
     free(output);
 
     struct point_t Xmin;
-    Xmin.x = xMin;
-    Xmin.y = (int) round(img->h / 2);
+    Xmin.x = (int) round(img->w / 2);
+    Xmin.y = xMin;
 
     struct point_t Xmax;
-    Xmax.x = xMax;
-    Xmax.y = Xmin.y;
+    Xmax.x = Xmin.x;
+    Xmax.y = xMax;
 
     struct point_t Xmid;
-    Xmid.x = (int) ((xMin + xMax) / 2);
-    Xmid.y = Xmin.y;
+    Xmid.x = Xmin.x;
+    Xmid.y = (int) ((xMin + xMax) / 2);
 
+    image_copy(&img3, img);
     image_draw_line(img, &Xmin, &Xmax);
     uint8_t color[4] = {127, 255, 127, 255};
     image_draw_crosshair(img, &Xmid, color, 10);
