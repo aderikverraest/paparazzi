@@ -5,7 +5,8 @@
 #ifndef GROUP_1_CV_H
 #define GROUP_1_CV_H
 
-#include "peripherals/video_device.h"
+#include <inttypes.h>
+#include "modules/computer_vision/lib/vision/image.h"
 
 uint8_t ker_mul(uint8_t const *source, int_fast8_t const *kernel, uint8_t total, uint8_t setting, int width);
 void image_convolution(struct image_t *input, struct image_t *output, int_fast8_t const *kernel, uint8_t kernel_total);

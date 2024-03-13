@@ -1,7 +1,7 @@
 #define EDGE_THRESHOLD 15000
 
 #include <stdlib.h>
-#include "group_1_cv.h"
+#include "modules/group1_cascade_filters/group_1_cv.h"
 
 uint8_t ker_mul(uint8_t const *source, int_fast8_t const *kernel, uint8_t total, uint8_t setting, int width) {
     int gradient;
