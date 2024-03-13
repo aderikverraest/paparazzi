@@ -10,7 +10,6 @@
 #include "modules/core/abi.h"
 #include "modules/computer_vision/lib/vision/image.h"
 
-
 // Setting up printing syntax
 #define PRINT(string,...) fprintf(stderr, "[CASCADE_FILTER->%s()] " string,__FUNCTION__ , ##__VA_ARGS__)
 #if OBJECT_DETECTOR_VERBOSE
@@ -74,6 +73,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
     image_to_grayscale(img, img);
 
+    fprintf(stderr, "Hallo");
     int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
     for (int i = 0; i < 4; ++i) {
         image_convolution(img, img, kernel_gaussian, 16);
@@ -82,12 +82,14 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     int_fast8_t* kernel_edge = (int_fast8_t*) malloc(8*sizeof(int_fast8_t));
     generate_kernel(&img->eulers, kernel_edge);
     image_convolution(img, img, kernel_edge, 8);
+    free(kernel_edge);
 
     int* output = (int*) calloc(img->w, sizeof(int));
     unaligned_sum(img, output, &img->eulers, 0);
 
     int xMin, xMax;
     heading_command(output, img->w, &xMin, &xMax);
+    free(output);
 
     struct point_t Xmin;
     Xmin.x = xMin;
