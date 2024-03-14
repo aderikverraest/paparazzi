@@ -439,6 +439,9 @@ void downsample_yuv422(struct image_t* input, struct image_t* output, uint8_t do
                      input->w / downsample_factor,
                      input->h / downsample_factor,
                      IMAGE_YUV422);
+    output->ts = input->ts;
+    output->eulers = input->eulers;
+    output->pprz_ts = input->pprz_ts;
     if (downsample_factor > 1) {
         image_yuv422_downsample(input, output,downsample_factor);
     }

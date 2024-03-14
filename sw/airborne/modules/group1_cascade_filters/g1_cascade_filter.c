@@ -56,7 +56,7 @@ uint8_t u_max = 121;
 uint8_t v_min = 134;
 uint8_t v_max = 249;
 
-uint8_t downsample_factor = 1;
+uint8_t downsample_factor = 2;
 
 // Drawing on image
 bool cf_draw = true;
@@ -82,7 +82,7 @@ bool cod_draw2 = false;
 
       // Functions //
     // Declarations
-struct image_t *image_ground_detector(struct image_t *img, struct image_t *img_out) {
+uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out) {
   //  return img;
   uint8_t y_m = 0;
   uint8_t y_M = 255;
@@ -103,6 +103,7 @@ struct image_t *image_ground_detector(struct image_t *img, struct image_t *img_o
       obtainYUV(img_out, dest, x, y, &yp_dest, &up_dest, &vp_dest);
       if (*yp >= y_m && *yp <= y_M && *up >= u_m && *up <= u_M && *vp >= v_m &&
           *vp <= v_M) {
+          cnt++;
         *yp_dest = y_ground_mask;
         *up_dest = u_ground_mask;
         *vp_dest = v_ground_mask;
@@ -127,7 +128,7 @@ struct image_t *image_ground_detector(struct image_t *img, struct image_t *img_o
   //      dest += 4;
   //    }
   //  }
-  return img;
+  return cnt;
 }
 
 void obtainYUV(struct image_t *img, uint8_t *buffer, int x, int y, uint8_t **yp,
@@ -147,7 +148,6 @@ void obtainYUV(struct image_t *img, uint8_t *buffer, int x, int y, uint8_t **yp,
 
 struct image_t *image_ground_filler(struct image_t *img) {
   uint8_t *buffer = img->buf;
-
   //  Only check up until horizon
   uint16_t horizon = img->w / 2;
   uint16_t top_x;
@@ -205,7 +205,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     image_create(&img3, img->w, img->h, img->type);
     image_copy(img, &img2);
     image_copy(img, &img3);
-    image_ground_detector(img, &img2);
+    uint32_t floor_count = image_ground_detector(img, &img2);
 //    image_ground_filler(&img2);
     make_black(&img2);
     image_to_grayscale(&img2, img);
@@ -258,17 +258,14 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     uint8_t color[4] = {127, 255, 127, 255};
     image_draw_crosshair(img, &Xmid, color, 10);
 
-    uint32_t nav_command = (xMin + xMax / 2); // Pixel direction
-    uint32_t count = 32;
+    uint32_t nav_command = (xMin + xMax / 2) - (img->h / 2); // Pixel direction
 
-    fprintf(stderr, "Color_count: %d  nav_command: %d \n", count, nav_command);
-
-
+    fprintf(stderr, "Floor_count: %d  nav_command: %d \n", floor_count, nav_command);
 
     // SEND GLOBAL MEMORY
     pthread_mutex_lock(&mutex);
     global_memory[0].nav_command = nav_command;
-    global_memory[0].pixel_count = count;
+    global_memory[0].pixel_count = floor_count;
     global_memory[0].updated = true;
     pthread_mutex_unlock(&mutex);
 
