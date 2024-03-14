@@ -84,7 +84,7 @@ bool cod_draw2 = false;
 
       // Functions //
     // Declarations
-uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uint32_t *count_left, uint32_t *count_right) {
+uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uint32_t *count_left, uint32_t *count_right, uint16_t *xmin, uint16_t *xmax) {
   //  return img;
   uint8_t y_m = 0;
   uint8_t y_M = 255;
@@ -96,6 +96,9 @@ uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uin
   uint16_t cnt = 0;
   uint8_t *source = (uint8_t *)img->buf;
   uint8_t *dest = (uint8_t *)img_out->buf;
+
+  uint16_t Xmin = 255;
+  uint16_t Xmax = 0;
 
   uint8_t *yp, *up, *vp;
   uint8_t *yp_dest, *up_dest, *vp_dest;
@@ -109,11 +112,14 @@ uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uin
         *yp_dest = y_ground_mask;
         *up_dest = u_ground_mask;
         *vp_dest = v_ground_mask;
+        Xmin = Xmin > y ? y: Xmin;
+        Xmax = Xmax < y ? y: Xmax;
+
       }
       if (x < img->w / 2) {
-        *count_left += cnt;
+        *count_left += 1;
       } else {
-        *count_right += cnt;
+        *count_right += 1;
       }
     }
   }
@@ -135,6 +141,10 @@ uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uin
   //      dest += 4;
   //    }
   //  }
+
+  *xmin = Xmin;
+  *xmax = Xmax;
+
   return cnt;
 }
 
@@ -216,7 +226,12 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     image_create(&img3, img->w, img->h, img->type);
     image_copy(img, &img2);
     image_copy(img, &img3);
-    uint32_t floor_count = image_ground_detector(img, &img2, &count_left, &count_right);
+
+    // Floor count
+    uint16_t xMinG;
+    uint16_t xMaxG;
+
+    uint32_t floor_count = image_ground_detector(img, &img2, &count_left, &count_right, &xMinG, &xMaxG);
 //    image_ground_filler(&img2);
     make_black(&img2);
     image_to_grayscale(&img2, img);
@@ -233,36 +248,33 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     }
     image_copy(img, &img3);
 
-    int_fast8_t* kernel_edge = (int_fast8_t*) malloc(8*sizeof(int_fast8_t));
 //    Hardcode 90 deg edge detector
-    int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
+    int_fast8_t kernel_edge[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
 
-    assign_kernel_values(kernel_r, kernel_edge);
 //    Temporarily removed rotated kernels
 //    generate_kernel(&img->eulers, kernel_edge);
     image_convolution(img, &img2, kernel_edge, 8);
-    free(kernel_edge);
     image_copy(&img2, img);
 
     int* output = (int*) calloc(img->h, sizeof(int));
     unaligned_sum(&img2, output, &img->eulers, 1);
 //
-    int xMin = 0;
-    int xMax = 0;
-    heading_command(output, img->h, &xMin, &xMax);
+    int xMinE = 0;
+    int xMaxE = 0;
+    heading_command(output, img->h, &xMinE, &xMaxE);
     free(output);
 
     struct point_t Xmin;
     Xmin.x = (int) round(img->w / 2);
-    Xmin.y = xMin;
+    Xmin.y = xMinE > xMinG ? xMinE: xMinG;
 
     struct point_t Xmax;
     Xmax.x = Xmin.x;
-    Xmax.y = xMax;
+    Xmax.y = xMaxE < xMaxG ? xMaxE: xMaxG;
 
     struct point_t Xmid;
     Xmid.x = Xmin.x;
-    Xmid.y = (int) ((xMin + xMax) / 2);
+    Xmid.y = (int) ((Xmin.y + Xmax.y) / 2);
 
     image_copy(&img3, img);
     image_draw_line(img, &Xmin, &Xmax);
@@ -270,7 +282,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     image_draw_crosshair(img, &Xmid, color, 10);
 
 
-    int32_t nav_command = (xMin + xMax / 2) - (img->h / 2); // Pixel direction
+    int32_t nav_command = (xMinE + xMaxE / 2) - (img->h / 2); // Pixel direction
 
     // normalise nav_command between -100 and 100
     // -100 -> 60% of half

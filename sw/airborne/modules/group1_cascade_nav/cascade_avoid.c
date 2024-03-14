@@ -39,7 +39,7 @@ uint8_t chooseRandomIncrementAvoidance(void);
 
 // AVOID SETTINGS
 float floor_color_count_frac = 0.18f;       // obstacle detection threshold as a fraction of total of image
-float cf_max_speed = 0.25f;               // max flight speed [m/s]
+float cf_max_speed = 1.0;               // max flight speed [m/s]
 float speed_sp;
 float cf_heading_rate = RadOfDeg(15);
 float cf_max_heading_rate = RadOfDeg(20.f);  // heading change setpoint for avoidance [rad/s]
@@ -77,6 +77,7 @@ void cascade_avoid_init(void)
     VERBOSE_PRINT("IN CASCADE AVOID INIT");
     // Initialise random values
     srand(time(NULL));
+    guidance_h_set_pos(0, 0);
     chooseRandomIncrementAvoidance();
 
     // bind our cascade filter callbacks to receive the cascade filter outputs
@@ -97,8 +98,8 @@ void cascade_avoid_periodic(void)
 
     // compute current color thresholds
 //    int32_t floor_count_threshold = floor_color_count_frac * front_camera.output_size.w * front_camera.output_size.h;
-    int32_t floor_count_threshold = 2000;
-    int32_t floor_count_threshold_reenter = 4000;
+    int32_t floor_count_threshold = 1500;
+    int32_t floor_count_threshold_reenter = 3000;
     fprintf(stderr, "Floor Count: %d  Threshold: %d State: %d \n", floor_count, floor_count_threshold, navigation_state);
 
     // Setting the flight speed

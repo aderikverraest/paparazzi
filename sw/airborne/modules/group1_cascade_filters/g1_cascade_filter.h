@@ -13,6 +13,8 @@
 #include "pthread.h"
 #include <stdint.h>
 
+#include "modules/computer_vision/lib/vision/image.h"
+
         // Global Variables //
 extern uint8_t y_min;
 extern uint8_t y_max;
@@ -26,5 +28,6 @@ extern bool cf_draw;
 // Main functions
 extern void cascade_filter_init(void);
 extern void cascade_filter_periodic(void);
+uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uint32_t *count_left, uint32_t *count_right, uint16_t *xmin, uint16_t *xmax);
 
 #endif //MAVLABCOURSE2024_G1_CASCADE_FILTER_H
