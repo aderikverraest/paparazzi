@@ -31,6 +31,8 @@ struct output_variables_object
     int32_t nav_command;
     uint32_t pixel_count;
     bool updated;
+    uint32_t count_left;
+    uint32_t count_right;
 };
 
 
@@ -82,7 +84,7 @@ bool cod_draw2 = false;
 
       // Functions //
     // Declarations
-uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out) {
+uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uint32_t *count_left, uint32_t *count_right) {
   //  return img;
   uint8_t y_m = 0;
   uint8_t y_M = 255;
@@ -107,6 +109,11 @@ uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out) {
         *yp_dest = y_ground_mask;
         *up_dest = u_ground_mask;
         *vp_dest = v_ground_mask;
+      }
+      if (x < img->w / 2) {
+        *count_left += cnt;
+      } else {
+        *count_right += cnt;
       }
     }
   }
@@ -200,6 +207,8 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 //    int16_t ground_top[img->w];
     int* ground_top = (int*) calloc(img->h, sizeof(int));
 
+    uint32_t count_left = 0;
+    uint32_t count_right = 0;
     // CONVOLUTIONS
     struct image_t img2;
     struct image_t img3;
@@ -207,7 +216,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     image_create(&img3, img->w, img->h, img->type);
     image_copy(img, &img2);
     image_copy(img, &img3);
-    uint32_t floor_count = image_ground_detector(img, &img2);
+    uint32_t floor_count = image_ground_detector(img, &img2, &count_left, &count_right);
 //    image_ground_filler(&img2);
     make_black(&img2);
     image_to_grayscale(&img2, img);
@@ -279,6 +288,8 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     global_memory[0].nav_command = nav_command;
     global_memory[0].pixel_count = floor_count;
     global_memory[0].updated = true;
+    global_memory[0].count_left = count_left;
+    global_memory[0].count_right = count_right;
     pthread_mutex_unlock(&mutex);
 
 
@@ -323,8 +334,8 @@ void cascade_filter_periodic(void)
         // Might have to make custom message
         AbiSendMsgVISUAL_DETECTION(CASCADE_FILTER_MSG_ID,
                                    local_memory[0].nav_command, // called int16_t pixel_x
-                                   0, // called int16_t pixel_y
-                                   0,   // called int16_t pixel_width,
+                                   local_memory[0].count_left, // called int16_t pixel_y
+                                   local_memory[0].count_right,   // called int16_t pixel_width,
                                    0,   // called int16_t pixel_height,
                                    local_memory[0].pixel_count,       // called int32_t quality,
                                    0);      // called int16_t extra

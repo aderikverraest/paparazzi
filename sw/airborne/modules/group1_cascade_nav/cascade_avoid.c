@@ -51,6 +51,8 @@ enum navigation_state_t navigation_state = SAFE;   // current state in state mac
 int32_t floor_count = 0;                // orange color count from color filter for obstacle detection
 float nav_command = 0;
 float avoidance_heading_direction = 0;  // heading change direction for avoidance [rad/s]
+uint32_t pixel_width = 0;
+uint32_t pixel_y = 0;
 int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that the way ahead if safe.
 
 
@@ -172,13 +174,19 @@ void cascade_avoid_periodic(void)
 uint8_t chooseRandomIncrementAvoidance(void)
 {
     // Randomly choose CW or CCW avoiding direction
-    if (rand() % 2 == 0) {
+    if (pixel_width > pixel_y) {
         avoidance_heading_direction = 1.f;
-        VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction * oag_heading_rate);
     } else {
         avoidance_heading_direction = -1.f;
-        VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction * oag_heading_rate);
     }
+//    if (rand() % 2 == 0) {
+//        avoidance_heading_direction = 1.f;
+//
+//        VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction * oag_heading_rate);
+//    } else {
+//        avoidance_heading_direction = -1.f;
+//        VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction * oag_heading_rate);
+//    }
     return false;
 }
 
