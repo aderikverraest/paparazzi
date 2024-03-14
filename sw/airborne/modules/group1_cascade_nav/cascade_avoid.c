@@ -25,27 +25,31 @@
 // Define Navigation States
 enum navigation_state_t {
     SAFE,
-    OBSTACLE_FOUND,
     SEARCH_FOR_SAFE_HEADING,
     OUT_OF_BOUNDS,
     REENTER_ARENA
 };
 
+float oag_color_count_frac;  // obstacle detection threshold as a fraction of total of image
+float oag_max_speed;         // max flight speed [m/s]
+float oag_heading_rate;
 
 // DECLARE FUNCTIONS
 uint8_t chooseRandomIncrementAvoidance(void);
 
 // AVOID SETTINGS
-float oag_color_count_frac = 0.18f;       // obstacle detection threshold as a fraction of total of image
-float oag_max_speed = 0.0f;               // max flight speed [m/s]
-float oag_heading_rate = RadOfDeg(20.f);  // heading change setpoint for avoidance [rad/s]
+float floor_color_count_frac = 0.18f;       // obstacle detection threshold as a fraction of total of image
+float cf_max_speed = 0.25f;               // max flight speed [m/s]
+float speed_sp;
+float cf_heading_rate = RadOfDeg(15);
+float cf_max_heading_rate = RadOfDeg(20.f);  // heading change setpoint for avoidance [rad/s]
 const int16_t max_trajectory_confidence = 5;  // number of consecutive negative object detections to be sure we are obstacle free
 
 
 // INITIALIZE GLOBAL VARIABLES
-enum navigation_state_t navigation_state = SEARCH_FOR_SAFE_HEADING;   // current state in state machine
-int32_t color_count = 0;                // orange color count from color filter for obstacle detection
-int32_t nav_command = 0;
+enum navigation_state_t navigation_state = SAFE;   // current state in state machine
+int32_t floor_count = 0;                // orange color count from color filter for obstacle detection
+float nav_command = 0;
 float avoidance_heading_direction = 0;  // heading change direction for avoidance [rad/s]
 int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that the way ahead if safe.
 
@@ -62,7 +66,7 @@ static void cascade_filter_cb(uint8_t __attribute__((unused)) sender_id,
                                int32_t quality, int16_t __attribute__((unused)) extra)
 {
     nav_command = pixel_x;
-    color_count = quality;
+    floor_count = quality;
 }
 
 // INIT FUNCTION
@@ -84,50 +88,48 @@ void cascade_avoid_periodic(void)
     VERBOSE_PRINT("IN CASCADE AVOID PERIODIC");
     // Only run the module if we are in the correct flight mode
     if (guidance_h.mode != GUIDANCE_H_MODE_GUIDED) {
-        navigation_state = SEARCH_FOR_SAFE_HEADING;
+        navigation_state = SAFE;
         obstacle_free_confidence = 0;
         return;
     }
 
     // compute current color thresholds
-    int32_t color_count_threshold = oag_color_count_frac * front_camera.output_size.w * front_camera.output_size.h;
-    fprintf(stderr, "Color_count: %d  threshold: %d state: %d \n", color_count, color_count_threshold, navigation_state);
+//    int32_t floor_count_threshold = floor_color_count_frac * front_camera.output_size.w * front_camera.output_size.h;
+    int32_t floor_count_threshold = 2000;
+    int32_t floor_count_threshold_reenter = 4000;
+    fprintf(stderr, "Floor Count: %d  Threshold: %d State: %d \n", floor_count, floor_count_threshold, navigation_state);
 
-    // update our safe confidence using color threshold
-    if(color_count < color_count_threshold){
-        obstacle_free_confidence++;
+    // Setting the flight speed
+    if (nav_command <= 20) {
+        speed_sp = cf_max_speed;
     } else {
-        obstacle_free_confidence -= 2;  // be more cautious with positive obstacle detections
+        speed_sp = 0;
     }
 
-    // bound obstacle_free_confidence
-    Bound(obstacle_free_confidence, 0, max_trajectory_confidence);
-    float speed_sp = fminf(oag_max_speed, 0.2f * obstacle_free_confidence);
 
     switch (navigation_state){
         case SAFE:
-//            if (floor_count < floor_count_threshold || fabsf(floor_centroid_frac) > 0.12){
-//                navigation_state = OUT_OF_BOUNDS;
-//            }
-            if (obstacle_free_confidence == 0){
-                navigation_state = OBSTACLE_FOUND;
-            } else {
-                // Fly in circles
-                guidance_h_set_heading_rate(0.2);
+            if (floor_count < floor_count_threshold){
+                navigation_state = OUT_OF_BOUNDS;
+            }
+            else {
+                // Steering plus forward speed
+                guidance_h_set_heading_rate((nav_command/100)*cf_max_heading_rate);
+                fprintf(stderr, "Speed: %f Heading Rate: %f \n", speed_sp, (nav_command/100)*cf_max_heading_rate);
                 guidance_h_set_body_vel(speed_sp, 0);
             }
 
             break;
-        case OBSTACLE_FOUND:
-            // stop
-            guidance_h_set_body_vel(0, 0);
-
-            // randomly select new search direction
-            chooseRandomIncrementAvoidance();
-
-            navigation_state = SEARCH_FOR_SAFE_HEADING;
-
-            break;
+//        case OBSTACLE_FOUND:
+//            // stop
+//            guidance_h_set_body_vel(0, 0);
+//
+//            // randomly select new search direction
+//            chooseRandomIncrementAvoidance();
+//
+//            navigation_state = SEARCH_FOR_SAFE_HEADING;
+//
+//            break;
         case SEARCH_FOR_SAFE_HEADING:
             guidance_h_set_heading_rate(avoidance_heading_direction * oag_heading_rate);
 
@@ -138,28 +140,25 @@ void cascade_avoid_periodic(void)
             }
             break;
         case OUT_OF_BOUNDS:
+            chooseRandomIncrementAvoidance();
             // stop
             guidance_h_set_body_vel(0, 0);
 
             // start turn back into arena
-            guidance_h_set_heading_rate(avoidance_heading_direction * RadOfDeg(15));
+            guidance_h_set_heading_rate(avoidance_heading_direction * cf_heading_rate);
 
             navigation_state = REENTER_ARENA;
 
             break;
         case REENTER_ARENA:
-            // force floor center to opposite side of turn to head back into arena
-//            if (floor_count >= floor_count_threshold && avoidance_heading_direction * floor_centroid_frac >= 0.f){
-//                // return to heading mode
-//                guidance_h_set_heading(stateGetNedToBodyEulers_f()->psi);
-//
-//                // reset safe counter
-//                obstacle_free_confidence = 0;
-//
-//                // ensure direction is safe before continuing
-//                navigation_state = SAFE;
-//            }
-            navigation_state = SAFE;
+//             force floor center to opposite side of turn to head back into arena
+            if (floor_count >= floor_count_threshold_reenter) {
+                // return to heading mode
+                guidance_h_set_heading(stateGetNedToBodyEulers_f()->psi);
+
+                // ensure direction is safe before continuing
+                navigation_state = SAFE;
+            }
             break;
         default:
             break;
