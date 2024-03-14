@@ -430,3 +430,18 @@ void heading_command(const int* input, int width, int *xMin, int *xMax) {
     *xMin = x_min;
     *xMax = x_max;
 }
+
+
+
+// Downsampling Function
+void downsample_yuv422(struct image_t* input, struct image_t* output, uint8_t downsample_factor) {
+
+    if(output->buf_size < input->buf_size/(downsample_factor*downsample_factor)){
+        image_create(output,
+                     input->w / downsample_factor,
+                     input->h / downsample_factor,
+                     IMAGE_YUV422);
+    } if (downsample_factor > 1) {
+        image_yuv422_downsample(input, output,downsample_factor);
+    }
+}

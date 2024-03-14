@@ -56,6 +56,8 @@ uint8_t u_max = 121;
 uint8_t v_min = 134;
 uint8_t v_max = 249;
 
+uint8_t downsample_factor = 1;
+
 // Drawing on image
 bool cf_draw = true;
 uint8_t y_ground_mask = 255;
@@ -77,8 +79,6 @@ uint8_t cod_cr_min2 = 0;
 uint8_t cod_cr_max2 = 0;
 bool cod_draw1 = false;
 bool cod_draw2 = false;
-
-
 
       // Functions //
     // Declarations
@@ -192,11 +192,13 @@ static struct image_t *make_black(struct image_t *img) {
     // Function Definitions
 static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 {
-    VERBOSE_PRINT("IN CASCADE FUNCTION");
-    // Run Cascading filters
-//    uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
-    uint32_t count = 0;
 
+    // DOWN SAMPLING
+    struct image_t img_ds;
+    downsample_yuv422(img, &img_ds, downsample_factor);
+    image_copy(&img_ds, img);
+
+    // CONVOLUTIONS
     struct image_t img2;
     struct image_t img3;
     image_create(&img2, img->w, img->h, img->type);
@@ -257,10 +259,13 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     image_draw_crosshair(img, &Xmid, color, 10);
 
     uint32_t nav_command = (xMin + xMax / 2); // Pixel direction
-//    uint32_t count = 32;
-    VERBOSE_PRINT("Color count: %u  Nav Command: %u\n", count, nav_command);
+    uint32_t count = 32;
 
-    // Update Global memory
+    fprintf(stderr, "Color_count: %d  nav_command: %d \n", count, nav_command);
+
+
+
+    // SEND GLOBAL MEMORY
     pthread_mutex_lock(&mutex);
     global_memory[0].nav_command = nav_command;
     global_memory[0].pixel_count = count;
