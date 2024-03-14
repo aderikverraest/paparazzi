@@ -281,7 +281,8 @@ void unaligned_sum(struct image_t *input, int *output, struct FloatEulers *angle
     int height = input->h;
 
     uint8_t* source = input->buf;
-
+    // hard code angle < 5 deg
+//    if (fabsf(angles->phi) < 0.0872664626f) {
     if (true) {
         if (!axis) {
             if (input->type == IMAGE_GRAYSCALE) {
