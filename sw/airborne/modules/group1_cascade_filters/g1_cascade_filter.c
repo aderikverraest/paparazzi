@@ -197,6 +197,8 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     struct image_t img_ds;
     downsample_yuv422(img, &img_ds, downsample_factor);
     image_copy(&img_ds, img);
+//    int16_t ground_top[img->w];
+    int* ground_top = (int*) calloc(img->h, sizeof(int));
 
     // CONVOLUTIONS
     struct image_t img2;
@@ -258,9 +260,19 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     uint8_t color[4] = {127, 255, 127, 255};
     image_draw_crosshair(img, &Xmid, color, 10);
 
-    uint32_t nav_command = (xMin + xMax / 2) - (img->h / 2); // Pixel direction
 
-    fprintf(stderr, "Floor_count: %d  nav_command: %d \n", floor_count, nav_command);
+    int32_t nav_command = (xMin + xMax / 2) - (img->h / 2); // Pixel direction
+
+    // normalise nav_command between -100 and 100
+    // -100 -> 60% of half
+    nav_command = nav_command * 100 / (img->h / 2) / 0.8;
+    if (nav_command > 100)
+    {
+        nav_command = 100;
+    } else if (nav_command < -100) {
+        nav_command = -100;
+    }
+//    fprintf(stderr, "Floor_count: %d  nav_command: %d \n", floor_count, nav_command);
 
     // SEND GLOBAL MEMORY
     pthread_mutex_lock(&mutex);
