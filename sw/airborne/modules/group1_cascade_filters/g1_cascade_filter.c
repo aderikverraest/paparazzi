@@ -59,8 +59,8 @@ uint8_t v_max = 249;
 // Drawing on image
 bool cf_draw = true;
 uint8_t y_ground_mask = 255;
-uint8_t u_ground_mask = 123;
-uint8_t v_ground_mask = 123;
+uint8_t u_ground_mask = 255;
+uint8_t v_ground_mask = 255;
 
 uint8_t cod_lum_min1 = 0;
 uint8_t cod_lum_max1 = 0;
@@ -82,7 +82,7 @@ bool cod_draw2 = false;
 
       // Functions //
     // Declarations
-struct image_t *image_ground_detector(struct image_t *img) {
+struct image_t *image_ground_detector(struct image_t *img, struct image_t *img_out) {
   //  return img;
   uint8_t y_m = 0;
   uint8_t y_M = 255;
@@ -92,37 +92,41 @@ struct image_t *image_ground_detector(struct image_t *img) {
   uint8_t v_M = 130;
 
   uint16_t cnt = 0;
-  uint8_t *dest = (uint8_t *)img->buf;
+  uint8_t *source = (uint8_t *)img->buf;
+  uint8_t *dest = (uint8_t *)img_out->buf;
+
   uint8_t *yp, *up, *vp;
+  uint8_t *yp_dest, *up_dest, *vp_dest;
   for (uint16_t y = 0; y < img->h; y++) {
     for (uint16_t x = 0; x < img->w; x += 2) {
-      obtainYUV(img, dest, x, y, &yp, &up, &vp);
+      obtainYUV(img, source, x, y, &yp, &up, &vp);
+      obtainYUV(img_out, dest, x, y, &yp_dest, &up_dest, &vp_dest);
       if (*yp >= y_m && *yp <= y_M && *up >= u_m && *up <= u_M && *vp >= v_m &&
           *vp <= v_M) {
-        *yp = y_ground_mask;
-        *up = u_ground_mask;
-        *vp = v_ground_mask;
+        *yp_dest = y_ground_mask;
+        *up_dest = u_ground_mask;
+        *vp_dest = v_ground_mask;
       }
     }
   }
   // Go trough all the pixels
-//  for (uint16_t y = 0; y < img->h; y++) {
-//    for (uint16_t x = 0; x < img->w; x += 2) {
-//      // Check if the color is inside the specified values
-//      if ((dest[1] >= y_m) && (dest[1] <= y_M) && (dest[0] >= u_m) &&
-//          (dest[0] <= u_M) && (dest[2] >= v_m) && (dest[2] <= v_M)) {
-//        cnt++;
-//        // UYVY
-//        dest[0] = u_ground_mask; // U
-//        dest[1] = y_ground_mask; // Y
-//        dest[2] = v_ground_mask; // V
-//        dest[3] = y_ground_mask; // Y
-//      }
-//
-//      // Go to the next 2 pixels
-//      dest += 4;
-//    }
-//  }
+  //  for (uint16_t y = 0; y < img->h; y++) {
+  //    for (uint16_t x = 0; x < img->w; x += 2) {
+  //      // Check if the color is inside the specified values
+  //      if ((dest[1] >= y_m) && (dest[1] <= y_M) && (dest[0] >= u_m) &&
+  //          (dest[0] <= u_M) && (dest[2] >= v_m) && (dest[2] <= v_M)) {
+  //        cnt++;
+  //        // UYVY
+  //        dest[0] = u_ground_mask; // U
+  //        dest[1] = y_ground_mask; // Y
+  //        dest[2] = v_ground_mask; // V
+  //        dest[3] = y_ground_mask; // Y
+  //      }
+  //
+  //      // Go to the next 2 pixels
+  //      dest += 4;
+  //    }
+  //  }
   return img;
 }
 
@@ -168,45 +172,86 @@ struct image_t *image_ground_filler(struct image_t *img) {
   return img;
 }
 
+static struct image_t *make_black(struct image_t *img) {
+        uint8_t *buffer = img->buf;
+        uint8_t *yp, *up, *vp;
+        for (uint16_t y = 0; y < img->h; y++) {
+          for (uint16_t x = 0; x < img->w; x += 1) {
+            obtainYUV(img, buffer, x, y, &yp, &up, &vp);
+            // if not white then make black
+            if (*yp != 255 && *up != 255 && *vp != 255) {
+              *yp = 0;
+              *up = 128;
+              *vp = 128;
+            }
+          }
+        }
+        return img;
+}
+
     // Function Definitions
 static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 {
     VERBOSE_PRINT("IN CASCADE FUNCTION");
     // Run Cascading filters
-    uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
-    image_to_grayscale(img, img);
-    image_ground_detector(img);
-    image_ground_filler(img);
+//    uint32_t count = image_yuv422_colorfilt(img, img, y_min, y_max, u_min, u_max, v_min, v_max);
+    uint32_t count = 0;
+
+    struct image_t img2;
+    struct image_t img3;
+    image_create(&img2, img->w, img->h, img->type);
+    image_create(&img3, img->w, img->h, img->type);
+    image_copy(img, &img2);
+    image_copy(img, &img3);
+    image_ground_detector(img, &img2);
+//    image_ground_filler(&img2);
+    make_black(&img2);
+    image_to_grayscale(&img2, img);
 
     int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
-    for (int i = 0; i < 4; ++i) {
-        image_convolution(img, img, kernel_gaussian, 16);
+    image_convolution(img, &img2, kernel_gaussian, 16);
+
+    image_copy(&img2, img);
+
+
+    for (int i = 0; i < 2; ++i) {
+        image_convolution(img, &img2, kernel_gaussian, 16);
+        image_convolution(&img2, img, kernel_gaussian, 16);
     }
+    image_copy(img, &img3);
 
     int_fast8_t* kernel_edge = (int_fast8_t*) malloc(8*sizeof(int_fast8_t));
-    generate_kernel(&img->eulers, kernel_edge);
-    image_convolution(img, img, kernel_edge, 8);
+//    Hardcode 90 deg edge detector
+    int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
+
+    assign_kernel_values(kernel_r, kernel_edge);
+//    Temporarily removed rotated kernels
+//    generate_kernel(&img->eulers, kernel_edge);
+    image_convolution(img, &img2, kernel_edge, 8);
     free(kernel_edge);
+    image_copy(&img2, img);
 
-    int* output = (int*) calloc(img->w, sizeof(int));
-    unaligned_sum(img, output, &img->eulers, 0);
-
-    int xMin, xMax;
-    heading_command(output, img->w, &xMin, &xMax);
+    int* output = (int*) calloc(img->h, sizeof(int));
+    unaligned_sum(&img2, output, &img->eulers, 1);
+//
+    int xMin = 0;
+    int xMax = 0;
+    heading_command(output, img->h, &xMin, &xMax);
     free(output);
 
     struct point_t Xmin;
-    Xmin.x = xMin;
-    Xmin.y = (int) round(img->h / 2);
+    Xmin.x = (int) round(img->w / 2);
+    Xmin.y = xMin;
 
     struct point_t Xmax;
-    Xmax.x = xMax;
-    Xmax.y = Xmin.y;
+    Xmax.x = Xmin.x;
+    Xmax.y = xMax;
 
     struct point_t Xmid;
-    Xmid.x = (int) ((xMin + xMax) / 2);
-    Xmid.y = Xmin.y;
+    Xmid.x = Xmin.x;
+    Xmid.y = (int) ((xMin + xMax) / 2);
 
+    image_copy(&img3, img);
     image_draw_line(img, &Xmin, &Xmax);
     uint8_t color[4] = {127, 255, 127, 255};
     image_draw_crosshair(img, &Xmid, color, 10);

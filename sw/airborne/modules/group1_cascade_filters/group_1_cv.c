@@ -1,59 +1,62 @@
-#define EDGE_THRESHOLD 15000
+#define EDGE_THRESHOLD 500
 
 #include <stdlib.h>
+#include <stdio.h>
 #include "modules/group1_cascade_filters/group_1_cv.h"
 
-uint8_t ker_mul(uint8_t const *source, int_fast8_t const *kernel, uint8_t total, uint8_t setting, int width) {
+
+uint8_t ker_mul(uint8_t const *source, int_fast8_t const *kernel, uint8_t total, uint8_t setting, int width, int YUV) {
     int gradient;
+    int offset = 1 + YUV;
 
     switch (setting) {
         default: {
-            gradient = *(source - 1 - width) * kernel[0] + *(source - width) * kernel[1] + *(source + 1 - width) * kernel[2] +
-                       *(source - 1) * kernel[3]         + *source * kernel[4]           + *(source + 1) * kernel[5] +
-                       *(source - 1 + width) * kernel[6] + *(source + width) * kernel[7] + *(source + 1 + width) * kernel[8];
+            gradient = *(source - offset - width) * kernel[0] + *(source - width) * kernel[1] + *(source + offset - width) * kernel[2] +
+                       *(source - offset) * kernel[3]         + *source * kernel[4]           + *(source + offset) * kernel[5] +
+                       *(source - offset + width) * kernel[6] + *(source + width) * kernel[7] + *(source + offset + width) * kernel[8];
             break; }
         case 1: { // Upper Edge
-            gradient = *(source - 1) * kernel[3]         + *source * kernel[4]           + *(source + 1) * kernel[5] +
-                       *(source - 1 + width) * kernel[6] + *(source + width) * kernel[7] + *(source + 1 + width) * kernel[8];
+            gradient = *(source - offset) * kernel[3]         + *source * kernel[4]           + *(source + offset) * kernel[5] +
+                       *(source - offset + width) * kernel[6] + *(source + width) * kernel[7] + *(source + offset + width) * kernel[8];
             break; }
         case 2: { // Lower Edge
-            gradient = *(source - 1 - width) * kernel[0] + *(source - width) * kernel[1] + *(source + 1 - width) * kernel[2] +
-                       *(source - 1) * kernel[3]         + *source * kernel[4]           + *(source + 1) * kernel[5];
+            gradient = *(source - offset - width) * kernel[0] + *(source - width) * kernel[1] + *(source + offset - width) * kernel[2] +
+                       *(source - offset) * kernel[3]         + *source * kernel[4]           + *(source + offset) * kernel[5];
             break; }
         case 3: { // Left Edge
-            gradient = *(source - width) * kernel[1] + *(source + 1 - width) * kernel[2] +
-                       *source * kernel[4]           + *(source + 1) * kernel[5] +
-                       *(source + width) * kernel[7] + *(source + 1 + width) * kernel[8];
+            gradient = *(source - width) * kernel[1] + *(source + offset - width) * kernel[2] +
+                       *source * kernel[4]           + *(source + offset) * kernel[5] +
+                       *(source + width) * kernel[7] + *(source + offset + width) * kernel[8];
             break; }
         case 4: { // Right Edge
-            gradient = *(source - 1 - width) * kernel[0] + *(source - width) * kernel[1] +
-                       *(source - 1) * kernel[3]         + *source * kernel[4] +
-                       *(source - 1 + width) * kernel[6] + *(source + width) * kernel[7];
+            gradient = *(source - offset - width) * kernel[0] + *(source - width) * kernel[1] +
+                       *(source - offset) * kernel[3]         + *source * kernel[4] +
+                       *(source - offset + width) * kernel[6] + *(source + width) * kernel[7];
             break; }
         case 5: {// Top Left Corner
-            gradient = *source * kernel[4]           + *(source + 1) * kernel[5] +
-                       *(source + width) * kernel[7] + *(source + 1 + width) * kernel[8];
+            gradient = *source * kernel[4]           + *(source + offset) * kernel[5] +
+                       *(source + width) * kernel[7] + *(source + offset + width) * kernel[8];
             break; }
         case 6: {// Top Right Corner
-            gradient = *(source - 1) * kernel[3]         + *source * kernel[4] +
-                       *(source - 1 + width) * kernel[6] + *(source + width) * kernel[7];
+            gradient = *(source - offset) * kernel[3]         + *source * kernel[4] +
+                       *(source - offset + width) * kernel[6] + *(source + width) * kernel[7];
             break; }
         case 7: {// Bottom Left Corner
-            gradient = *(source - width) * kernel[1] + *(source + 1 - width) * kernel[2] +
-                       *source * kernel[4]           + *(source + 1) * kernel[5];
+            gradient = *(source - width) * kernel[1] + *(source + offset - width) * kernel[2] +
+                       *source * kernel[4]           + *(source + offset) * kernel[5];
             break; }
         case 8: {// Bottom Right Corner
-            gradient = *(source - 1 - width) * kernel[0] + *(source - width) * kernel[1] +
-                       *(source - 1) * kernel[3]         + *source * kernel[4];
+            gradient = *(source - offset - width) * kernel[0] + *(source - width) * kernel[1] +
+                       *(source - offset) * kernel[3]         + *source * kernel[4];
             break; }
     }
+
     return (uint8_t) ((int) abs(gradient) / total);
 }
 
 void image_convolution(struct image_t *input, struct image_t *output, int_fast8_t const *kernel, uint8_t kernel_total) {
     uint8_t *source = input->buf;
     uint8_t *dest = output->buf;
-    source++;
 
     // Copy the creation timestamp (stays the same)
     output->ts = input->ts;
@@ -64,102 +67,104 @@ void image_convolution(struct image_t *input, struct image_t *output, int_fast8_
     int width = output->w;
 
     if (output->type == IMAGE_YUV422) {
+        // Skip The first U/V pixel
+        *dest++ = 127;
+        source++;
+
         // Top Left Corner
-        *dest++ = ker_mul(source, kernel, kernel_total, 5, width);
+        *dest++ = ker_mul(source, kernel, kernel_total, 5, 2 * width, 1);
         source += 2;
-        *dest++ = 0;
+        *dest++ = 127;
 
         // Upper Edge
         for (int x = 1; x < width - 1; x++) {
-            *dest++ = ker_mul(source, kernel, kernel_total, 1, width);
+            *dest++ = ker_mul(source, kernel, kernel_total, 1, 2 * width, 1);
             source += 2;
-            *dest++ = 0;
+            *dest++ = 127;
         }
 
         // Top Right Corner
-        *dest++ = ker_mul(source, kernel, kernel_total, 6, width);
+        *dest++ = ker_mul(source, kernel, kernel_total, 6, 2 * width, 1);
         source += 2;
-        *dest++ = 0;
+        *dest++ = 127;
 
         for (int y = 1; y < height - 1; y++) {
             // Left Edge
-            *dest++ = ker_mul(source, kernel, kernel_total, 3, width);
+            *dest++ = ker_mul(source, kernel, kernel_total, 3, 2 * width, 1);
             source += 2;
-            *dest++ = 0;
+            *dest++ = 127;
 
             // Middle
             for (int x = 1; x < width - 1; x++) {
-                *dest++ = ker_mul(source, kernel, kernel_total, 0, width);
+                *dest++ = ker_mul(source, kernel, kernel_total, 0, 2 * width, 1);
                 source += 2;
-                *dest++ = 0;
+                *dest++ = 127;
             }
 
             // Right Edge
-            *dest++ = ker_mul(source, kernel, kernel_total, 4, width);
+            *dest++ = ker_mul(source, kernel, kernel_total, 4, 2 * width, 1);
             source += 2;
-            *dest++ = 0;
+            *dest++ = 127;
         }
 
         // Bottom Left Corner
-        *dest++ = ker_mul(source, kernel, kernel_total, 7, width);
+        *dest++ = ker_mul(source, kernel, kernel_total, 7, 2 * width, 1);
         source += 2;
-        *dest++ = 0;
+        *dest++ = 127;
 
         // Bottom Edge
         for (int x = 1; x < width - 1; x++) {
-            *dest++ = ker_mul(source, kernel, kernel_total, 2, width);
+            *dest++ = ker_mul(source, kernel, kernel_total, 2, 2 * width, 1);
             source += 2;
-            *dest++ = 0;
+            *dest++ = 127;
         }
 
         // Bottom Right Corner
-        *dest++ = ker_mul(source, kernel, kernel_total, 8, width);
-        source += 2;
-        *dest++ = 0;
+        *dest++ = ker_mul(source, kernel, kernel_total, 8, 2 * width, 1);
     } else {
         if (output->type == IMAGE_GRAYSCALE) {
             // Top Left Corner
-            *dest++ = ker_mul(source, kernel, kernel_total, 5, width);
+            *dest++ = ker_mul(source, kernel, kernel_total, 5, width, 0);
             source++;
 
             // Upper Edge
             for (int x = 1; x < width - 1; x++) {
-                *dest++ = ker_mul(source, kernel, kernel_total, 1, width);
+                *dest++ = ker_mul(source, kernel, kernel_total, 1, width, 0);
                 source++;
             }
 
             // Top Right Corner
-            *dest++ = ker_mul(source, kernel, kernel_total, 6, width);
+            *dest++ = ker_mul(source, kernel, kernel_total, 6, width, 0);
             source++;
 
             for (int y = 1; y < height - 1; y++) {
                 // Left Edge
-                *dest++ = ker_mul(source, kernel, kernel_total, 3, width);
+                *dest++ = ker_mul(source, kernel, kernel_total, 3, width, 0);
                 source++;
 
                 // Middle
                 for (int x = 1; x < width - 1; x++) {
-                    *dest++ = ker_mul(source, kernel, kernel_total, 0, width);
+                    *dest++ = ker_mul(source, kernel, kernel_total, 0, width, 0);
                     source++;
                 }
 
                 // Right Edge
-                *dest++ = ker_mul(source, kernel, kernel_total, 4, width);
+                *dest++ = ker_mul(source, kernel, kernel_total, 4, width, 0);
                 source++;
             }
 
             // Bottom Left Corner
-            *dest++ = ker_mul(source, kernel, kernel_total, 7, width);
+            *dest++ = ker_mul(source, kernel, kernel_total, 7, width, 0);
             source++;
 
             // Bottom Edge
             for (int x = 1; x < width - 1; x++) {
-                *dest++ = ker_mul(source, kernel, kernel_total, 2, width);
+                *dest++ = ker_mul(source, kernel, kernel_total, 2, width, 0);
                 source++;
             }
 
             // Bottom Right Corner
-            *dest++ = ker_mul(source, kernel, kernel_total, 8, width);
+            *dest++ = ker_mul(source, kernel, kernel_total, 8, width, 0);
             source++;
         }
     }
@@ -174,97 +179,97 @@ void assign_kernel_values(int_fast8_t const *kernel_r, int_fast8_t *kernel) {
 void generate_kernel (struct FloatEulers const *angles, int_fast8_t *kernel) {
     switch ((int) ((angles->phi+45)/0.0872664626)) { //Every 5 degrees
         case 0: { // Angle = -45
-            int_fast8_t kernel_r[9] = {-2, -1, 0, -1, 0, 1, 0, 1, 2};
+            int_fast8_t kernel_r[9] = {0, -1, -2, 1, 0, -1, 2, 1, 0};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 1: { // Angle = -40
-            int_fast8_t kernel_r[9] = {-2, -1, 0, -1, 0, 1, 0, 1, 2};
+            int_fast8_t kernel_r[9] = {0, -1, -2, 1, 0, -1, 2, 1, 0};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 2: { // Angle = -35
-            int_fast8_t kernel_r[9] = {-2, -1, 0, -1, 0, 1, 0, 1, 2};
+            int_fast8_t kernel_r[9] = {0, -1, -2, 1, 0, -1, 2, 1, 0};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 3: { // Angle = -30
-            int_fast8_t kernel_r[9] = {-2, -1, 0, -1, 0, 1, 0, 1, 2};
+            int_fast8_t kernel_r[9] = {0, -1, -2, 1, 0, -1, 2, 1, 0};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 4: { // Angle = -25
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -1, 0, 1, 0, 1, 2};
+            int_fast8_t kernel_r[9] = {0, -1, -1, 1, 0, 0, 2, 1, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 5: { // Angle = -20
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -2, 0, 2, -1, 0, 1};
+            int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 6: { // Angle = -15
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -2, 0, 2, -1, 0, 1};
+            int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 7: { // Angle = -10
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -2, 0, 2, -1, 0, 1};
+            int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 8: { // Angle = -5
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -2, 0, 2, -1, 0, 1};
+            int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
-        default: case 9: { // Angle = 0
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -2, 0, 2, -1, 0, 1};
+        case 9: { // Angle = 0
+            int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 10: { // Angle = 5
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -2, 0, 2, -1, 0, 1};
+            int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 11: { // Angle = 10
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -2, 0, 2, -1, 0, 1};
+            int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 12: { // Angle = 15
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -2, 0, 2, -1, 0, 1};
+            int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 13: { // Angle = 20
-            int_fast8_t kernel_r[9] = {-1, 0, 1, -2, 0, 2, -1, 0, 1};
+            int_fast8_t kernel_r[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 14: { // Angle = 25
-            int_fast8_t kernel_r[9] = {0, 1, 2, -1, 0, 1, -1, 0, 1};
+            int_fast8_t kernel_r[9] = {-1, -1, 0, 0, 0, 1, 1, 1, 2};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 15: { // Angle = 30
-            int_fast8_t kernel_r[9] = {0, 1, 2, -1, 0, 1, -2, -1, 0};
+            int_fast8_t kernel_r[9] = {-2, -1, 0, -1, 0, 1, 0, 1, 2};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 16: { // Angle = 35
-            int_fast8_t kernel_r[9] = {0, 1, 2, -1, 0, 1, -2, -1, 0};
+            int_fast8_t kernel_r[9] = {-2, -1, 0, -1, 0, 1, 0, 1, 2};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 17: { // Angle = 40
-            int_fast8_t kernel_r[9] = {0, 1, 2, -1, 0, 1, -2, -1, 0};
+            int_fast8_t kernel_r[9] = {-2, -1, 0, -1, 0, 1, 0, 1, 2};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
         case 18: { // Angle = 45
-            int_fast8_t kernel_r[9] = {0, 1, 2, -1, 0, 1, -2, -1, 0};
+            int_fast8_t kernel_r[9] = {-2, -1, 0, -1, 0, 1, 0, 1, 2};
             assign_kernel_values(kernel_r, kernel);
             break;
         }
@@ -276,9 +281,8 @@ void unaligned_sum(struct image_t *input, int *output, struct FloatEulers *angle
     int height = input->h;
 
     uint8_t* source = input->buf;
-    source++;
 
-    if (fabsf(angles->phi) < 0.0872664626f) {
+    if (true) {
         if (!axis) {
             if (input->type == IMAGE_GRAYSCALE) {
                 // Sum per column for a grayscale with low (-5<phi<5) roll angle
@@ -290,6 +294,9 @@ void unaligned_sum(struct image_t *input, int *output, struct FloatEulers *angle
                     output++;
                 }
             } else {
+                // skip the first pixel
+                source++;
+
                 // Sum per column for a YUC with low (-5<phi<5) roll angle
                 for (int i = 0; i < width; ++i) {
                     for (int j = 0; j < height; ++j) {
@@ -301,7 +308,7 @@ void unaligned_sum(struct image_t *input, int *output, struct FloatEulers *angle
             }
         } else {
             if (input->type == IMAGE_GRAYSCALE) {
-                // Sum per row` values for a greyscale with low (-5<phi<5) roll angle
+                // Sum per row values for a greyscale with low (-5<phi<5) roll angle
                 for (int i = 0; i < height; ++i) {
                     for (int j = 0; j < width; ++j) {
                         *output += *source++;
@@ -309,7 +316,10 @@ void unaligned_sum(struct image_t *input, int *output, struct FloatEulers *angle
                     output++;
                 }
             } else {
-                // Sum per row` values for a YUC with low (-5<phi<5) roll angle
+                // skip the first pixel
+                source++;
+
+                // Sum per row values for a YUC with low (-5<phi<5) roll angle
                 for (int i = 0; i < height; ++i) {
                     for (int j = 0; j < width; ++j) {
                         *output += *source;
@@ -338,6 +348,9 @@ void unaligned_sum(struct image_t *input, int *output, struct FloatEulers *angle
                     output++;
                 }
             } else {
+                // skip the first pixel
+                source++;
+
                 // Sum per column for a YUC with high (5<abs(phi)<45) roll angle
                 for (int i = 0; i < width; ++i) {
                     for (int j = 0; j < height; ++j) {
@@ -364,6 +377,9 @@ void unaligned_sum(struct image_t *input, int *output, struct FloatEulers *angle
                     output++;
                 }
             } else {
+                // skip the first pixel
+                source++;
+
                 // Sum per row for a YUC with high (5<abs(phi)<45) roll angle
                 for (int i = 0; i < height; ++i) {
                     for (int j = 0; j < width; ++j) {
