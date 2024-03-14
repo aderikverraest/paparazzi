@@ -282,7 +282,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     image_draw_crosshair(img, &Xmid, color, 10);
 
 
-    int32_t nav_command = (xMinE + xMaxE / 2) - (img->h / 2); // Pixel direction
+    int32_t nav_command = Xmid.y - (img->h / 2); // Pixel direction
 
     // normalise nav_command between -100 and 100
     // -100 -> 60% of half

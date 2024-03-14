@@ -98,8 +98,8 @@ void cascade_avoid_periodic(void)
 
     // compute current color thresholds
 //    int32_t floor_count_threshold = floor_color_count_frac * front_camera.output_size.w * front_camera.output_size.h;
-    int32_t floor_count_threshold = 1500;
-    int32_t floor_count_threshold_reenter = 3000;
+    int32_t floor_count_threshold = 2000;
+    int32_t floor_count_threshold_reenter = 4000;
     fprintf(stderr, "Floor Count: %d  Threshold: %d State: %d \n", floor_count, floor_count_threshold, navigation_state);
 
     // Setting the flight speed
