@@ -11,17 +11,18 @@
       <define name="MT9V117_TARGET_FPS" value="20"/>
       
       <!-- Detect orange -->
-      <define name="CASCADE_FILTER_Y_THRESH_MIN" value="30"/>
-      <define name="CASCADE_FILTER_Y_THRESH_MAX" value="170"/>
-      <define name="CASCADE_FILTER_U_THRESH_MIN" value="70"/>
-      <define name="CASCADE_FILTER_U_THRESH_MAX" value="130"/>
-      <define name="CASCADE_FILTER_V_THRESH_MIN" value="150"/>
-      <define name="CASCADE_FILTER_V_THRESH_MAX" value="190"/>
+      <define name="CASCADE_FILTER_Y_THRESH_MIN" value="0"/>
+      <define name="CASCADE_FILTER_Y_THRESH_MAX" value="169"/>
+      <define name="CASCADE_FILTER_U_THRESH_MIN" value="0"/>
+      <define name="CASCADE_FILTER_U_THRESH_MAX" value="107"/>
+      <define name="CASCADE_FILTER_V_THRESH_MIN" value="0"/>
+      <define name="CASCADE_FILTER_V_THRESH_MAX" value="146"/>
+      <define name="CASCADE_FILTER_EDGE_THRESHOLD" value="500"/>
 
     </target>
     <target name="nps" board="pc">
       <module name="fdm" type="gazebo"/>
-      <define name="VIDEO_CAPTURE_PATH" value="/home/maximecapelle/paparazzi_images/simulator/"/>
+      <define name="VIDEO_CAPTURE_PATH" value="/home/daan/paparazzi_images/simulator/"/>
       <define name="LOGGER_FILE_PATH" value="/tmp/paparazzi/log"/>
       
       <!-- Detect orange -->

@@ -22,6 +22,7 @@ extern uint8_t u_min;
 extern uint8_t u_max;
 extern uint8_t v_min;
 extern uint8_t v_max;
+extern int edge_threshold;
 
 extern bool cf_draw;
 

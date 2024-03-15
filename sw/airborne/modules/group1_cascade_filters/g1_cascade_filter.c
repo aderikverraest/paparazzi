@@ -49,16 +49,16 @@ struct output_variables_object global_memory[1];
 // Filter Thresholds (Default values if not defined in conf file)
 
 // Luma
-uint8_t y_min = 41;
-uint8_t y_max = 183;
+uint8_t y_min = 0;
+uint8_t y_max = 169;
 
 // Chroma Blue
-uint8_t u_min = 53;
-uint8_t u_max = 121;
+uint8_t u_min = 0;
+uint8_t u_max = 107;
 
 // Chroma Red
-uint8_t v_min = 134;
-uint8_t v_max = 249;
+uint8_t v_min = 0;
+uint8_t v_max = 146;
 
 uint8_t downsample_factor = 4;
 
@@ -94,12 +94,12 @@ uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uin
 //  uint8_t u_M = 110;
 //  uint8_t v_m = 0;
 //  uint8_t v_M = 130;
-  uint8_t y_m = 0;
-  uint8_t y_M = 169;
-  uint8_t u_m = 0;
-  uint8_t u_M = 107;
-  uint8_t v_m = 0;
-  uint8_t v_M = 146;
+  uint8_t y_m = y_min;
+  uint8_t y_M = y_max;
+  uint8_t u_m = u_min;
+  uint8_t u_M = u_max;
+  uint8_t v_m = v_min;
+  uint8_t v_M = v_max;
 
   uint16_t cnt = 0;
   uint8_t *source = (uint8_t *)img->buf;

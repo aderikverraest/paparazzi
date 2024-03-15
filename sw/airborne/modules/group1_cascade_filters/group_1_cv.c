@@ -1,9 +1,8 @@
-#define EDGE_THRESHOLD 500
-
 #include <stdlib.h>
 #include <stdio.h>
 #include "modules/group1_cascade_filters/group_1_cv.h"
 
+int edge_threshold = 500;
 
 uint8_t ker_mul(uint8_t const *source, int_fast8_t const *kernel, uint8_t total, uint8_t setting, int width, int YUV) {
     int gradient;
@@ -404,7 +403,7 @@ void heading_command(const int* input, int width, int *xMin, int *xMax) {
 
     int i;
     for (i = 0; i < width; ++i) {
-        if (*input++ < EDGE_THRESHOLD) {
+        if (*input++ < edge_threshold) {
             if (!current_len) current_start = i;
             current_len += 1;
         } else {
