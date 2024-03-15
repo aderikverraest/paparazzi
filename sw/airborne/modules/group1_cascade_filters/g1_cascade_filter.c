@@ -31,6 +31,8 @@ struct output_variables_object
     int32_t nav_command;
     uint32_t pixel_count;
     bool updated;
+    int16_t img_w;
+    int16_t img_h;
     uint32_t count_left;
     uint32_t count_right;
 };
@@ -58,7 +60,7 @@ uint8_t u_max = 121;
 uint8_t v_min = 134;
 uint8_t v_max = 249;
 
-uint8_t downsample_factor = 2;
+uint8_t downsample_factor = 4;
 
 // Drawing on image
 bool cf_draw = true;
@@ -220,6 +222,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     struct image_t img_ds;
     downsample_yuv422(img, &img_ds, downsample_factor);
     image_copy(&img_ds, img);
+
 //    int16_t ground_top[img->w];
     int* ground_top = (int*) calloc(img->h, sizeof(int));
 
@@ -288,10 +291,11 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     image_draw_crosshair(img, &Xmid, color, 10);
 
 
-    int32_t nav_command = (xMinE + xMaxE / 2) - (img->h / 2); // Pixel direction
+    // Create Nav Command
+    int32_t nav_command = Xmid.y - (img->h / 2); // Pixel direction
 
-    // normalise nav_command between -100 and 100
-    // -100 -> 60% of half
+    // Normalization:
+    // nav_command between -100 and 100 (-100 -> 60% of half)
     nav_command = nav_command * 100 / (img->h / 2) / 0.8;
     if (nav_command > 100)
     {
@@ -299,7 +303,6 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     } else if (nav_command < -100) {
         nav_command = -100;
     }
-//    fprintf(stderr, "Floor_count: %d  nav_command: %d \n", floor_count, nav_command);
 
     // SEND GLOBAL MEMORY
     pthread_mutex_lock(&mutex);
@@ -308,6 +311,8 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     global_memory[0].updated = true;
     global_memory[0].count_left = count_left;
     global_memory[0].count_right = count_right;
+    global_memory[0].img_w = img->w;
+    global_memory[0].img_h = img->h;
     pthread_mutex_unlock(&mutex);
 
 
@@ -353,10 +358,10 @@ void cascade_filter_periodic(void)
         AbiSendMsgVISUAL_DETECTION(CASCADE_FILTER_MSG_ID,
                                    local_memory[0].nav_command, // called int16_t pixel_x
                                    local_memory[0].count_left, // called int16_t pixel_y
-                                   local_memory[0].count_right,   // called int16_t pixel_width,
-                                   0,   // called int16_t pixel_height,
+                                   local_memory[0].img_w,   // called int16_t pixel_width,
+                                   local_memory[0].img_h,   // called int16_t pixel_height,
                                    local_memory[0].pixel_count,       // called int32_t quality,
-                                   0);      // called int16_t extra
+                                   local_memory[0].count_right);      // called int16_t extra
         local_memory[0].updated = false;
     }
 }

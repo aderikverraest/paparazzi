@@ -38,7 +38,7 @@ float oag_heading_rate;
 uint8_t chooseRandomIncrementAvoidance(void);
 
 // AVOID SETTINGS
-float floor_color_count_frac = 0.18f;       // obstacle detection threshold as a fraction of total of image
+float floor_color_count_frac = 0.065f;       // obstacle detection threshold as a fraction of total of image
 float cf_max_speed = 1.0;               // max flight speed [m/s]
 float speed_sp;
 float cf_heading_rate = RadOfDeg(15);
@@ -51,8 +51,11 @@ enum navigation_state_t navigation_state = SAFE;   // current state in state mac
 int32_t floor_count = 0;                // orange color count from color filter for obstacle detection
 float nav_command = 0;
 float avoidance_heading_direction = 0;  // heading change direction for avoidance [rad/s]
-uint32_t pixel_width = 0;
+uint32_t count_left = 0;
+uint32_t count_right = 0;
 uint32_t pixel_y = 0;
+int16_t img_w = 0;
+int16_t img_h = 0;
 int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that the way ahead if safe.
 
 
@@ -63,12 +66,19 @@ int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that 
 #endif
 static abi_event cascade_filter_ev;
 static void cascade_filter_cb(uint8_t __attribute__((unused)) sender_id,
-                               int16_t pixel_x, int16_t __attribute__((unused)) pixel_y,
-                               int16_t __attribute__((unused)) pixel_width, int16_t __attribute__((unused)) pixel_height,
-                               int32_t quality, int16_t __attribute__((unused)) extra)
+                               int16_t pixel_x,
+                               int16_t pixel_y,
+                               int16_t pixel_width,
+                               int16_t pixel_height,
+                               int32_t quality,
+                               int16_t extra)
 {
     nav_command = pixel_x;
+    count_left = pixel_y;
+    img_w = pixel_width;
+    img_h = pixel_height;
     floor_count = quality;
+    count_right = extra;
 }
 
 // INIT FUNCTION
@@ -97,13 +107,13 @@ void cascade_avoid_periodic(void)
     }
 
     // compute current color thresholds
-//    int32_t floor_count_threshold = floor_color_count_frac * front_camera.output_size.w * front_camera.output_size.h;
-    int32_t floor_count_threshold = 1500;
-    int32_t floor_count_threshold_reenter = 3000;
+    int32_t floor_count_threshold = floor_color_count_frac * img_w * img_h;
+    int32_t floor_count_threshold_reenter = 2*floor_color_count_frac * img_w * img_h;
+    int32_t nav_command_threshold = 20;
     fprintf(stderr, "Floor Count: %d  Threshold: %d State: %d \n", floor_count, floor_count_threshold, navigation_state);
 
     // Setting the flight speed
-    if (nav_command <= 20) {
+    if (nav_command <= nav_command_threshold) {
         speed_sp = cf_max_speed;
     } else {
         speed_sp = 0;
@@ -175,7 +185,7 @@ void cascade_avoid_periodic(void)
 uint8_t chooseRandomIncrementAvoidance(void)
 {
     // Randomly choose CW or CCW avoiding direction
-    if (pixel_width > pixel_y) {
+    if (count_right > count_left) {
         avoidance_heading_direction = 1.f;
     } else {
         avoidance_heading_direction = -1.f;
