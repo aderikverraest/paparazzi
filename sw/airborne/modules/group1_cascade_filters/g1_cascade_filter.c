@@ -86,12 +86,18 @@ bool cod_draw2 = false;
     // Declarations
 uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uint32_t *count_left, uint32_t *count_right, uint16_t *xmin, uint16_t *xmax) {
   //  return img;
+//  uint8_t y_m = 0;
+//  uint8_t y_M = 255;
+//  uint8_t u_m = 0;
+//  uint8_t u_M = 110;
+//  uint8_t v_m = 0;
+//  uint8_t v_M = 130;
   uint8_t y_m = 0;
-  uint8_t y_M = 255;
+  uint8_t y_M = 169;
   uint8_t u_m = 0;
-  uint8_t u_M = 110;
+  uint8_t u_M = 107;
   uint8_t v_m = 0;
-  uint8_t v_M = 130;
+  uint8_t v_M = 146;
 
   uint16_t cnt = 0;
   uint8_t *source = (uint8_t *)img->buf;
