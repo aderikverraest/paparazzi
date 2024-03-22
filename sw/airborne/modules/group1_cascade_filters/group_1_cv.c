@@ -3,6 +3,8 @@
 #include "modules/group1_cascade_filters/group_1_cv.h"
 
 int edge_threshold = 300;
+int epsilon = 30;
+
 
 uint8_t ker_mul(uint8_t const *source, int_fast8_t const *kernel, uint8_t total, uint8_t setting, int width, int YUV) {
     int gradient;
@@ -396,13 +398,13 @@ void unaligned_sum(struct image_t *input, int *output, struct FloatEulers *angle
     }
 }
 
-void heading_command(const int* input, int width, int *xMin, int *xMax) {
+void heading_command(const int* input, uint16_t start, uint16_t end, int *xMin, int *xMax) {
     int x_min, x_max, current_start;
     int current_len = 0;
     int max_len = 0;
 
     int i;
-    for (i = 0; i < width; ++i) {
+    for (i = start; i < end; ++i) {
         if (*input++ < edge_threshold) {
             if (!current_len) current_start = i;
             current_len += 1;
@@ -444,4 +446,67 @@ void downsample_yuv422(struct image_t* input, struct image_t* output, uint8_t do
     if (downsample_factor > 1) {
         image_yuv422_downsample(input, output,downsample_factor);
     }
+}
+
+
+void find_max_y(struct image_t* input, uint16_t* output) {
+    u_int8_t* source = input->buf;
+    source ++;
+
+    for (int i = 0; i < input->h; ++i) {
+        for (int j = input->w - 1; j >= 0; j -= 2) {
+            if (!*source) *output = input->w - j;
+        }
+        output++;
+    }
+}
+
+
+void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_t start, uint16_t end, int *xMin, int *xMax) {
+    int x_min, x_max, current_start;
+    int current_len = 0;
+    int max_len = 0;
+    uint8_t min_len = 20;
+    int avg_green = 0;
+    int max_green = 0;
+
+    int i;
+    for (i = start; i < end; ++i) {
+        if (*edge_input++ < edge_threshold) {
+            if (!current_len) current_start = i;
+            current_len += 1;
+        } else {
+            if (current_len > min_len) {
+                avg_green = 0;
+                for (int j = current_start; j < i; ++j) {
+                    avg_green += y_input[j];
+                }
+                avg_green = (avg_green / current_len) + epsilon;
+
+                if (avg_green > max_green) {
+                    max_green = avg_green;
+                    x_min = current_start;
+                    x_max = i;
+                }
+            }
+            current_len = 0;
+        }
+    }
+
+    if (current_len > min_len) {
+        avg_green = 0;
+        for (int j = current_start; j < i; ++j) {
+            avg_green += y_input[j];
+        }
+        avg_green = (avg_green / current_len) + epsilon;
+
+        if (avg_green > max_green) {
+            max_green = avg_green;
+            x_min = current_start;
+            x_max = i;
+        }
+    }
+
+    *xMin = x_min;
+    *xMax = x_max;
 }
