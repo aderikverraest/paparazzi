@@ -111,7 +111,7 @@ uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uin
   uint8_t *yp, *up, *vp;
   uint8_t *yp_dest, *up_dest, *vp_dest;
   for (uint16_t y = 0; y < img->h; y++) {
-    for (uint16_t x = 0; x < img->w; x += 2) {
+    for (uint16_t x = 0; x < img->w; x++) {
       obtainYUV(img, source, x, y, &yp, &up, &vp);
       obtainYUV(img_out, dest, x, y, &yp_dest, &up_dest, &vp_dest);
       if (*yp >= y_m && *yp <= y_M && *up >= u_m && *up <= u_M && *vp >= v_m &&
@@ -154,6 +154,33 @@ uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uin
   *xmax = Xmax;
 
   return cnt;
+}
+
+void avg_pool(struct image_t *img, struct image_t *img_out, uint8_t threshold, uint8_t n_iterations) {
+  int_fast8_t avg_kernel[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+  for (int i = 0; i < n_iterations; ++i) {
+    image_convolution(img, img_out, avg_kernel, 9);
+  }
+  threshold_img(img_out, img_out, threshold);
+}
+
+void threshold_img(struct image_t *img_in, struct image_t *img_out, uint8_t threshold) {
+  uint8_t *source = (uint8_t *)img_in->buf;
+  uint8_t *dest = (uint8_t *)img_out->buf;
+
+  uint8_t *yp, *up, *vp;
+  uint8_t *yp_dest, *up_dest, *vp_dest;
+  for (uint16_t y = 0; y < img_in->h; y++) {
+    for (uint16_t x = 0; x < img_in->w; x++) {
+      obtainYUV(img_in, source, x, y, &yp, &up, &vp);
+      obtainYUV(img_out, dest, x, y, &yp_dest, &up_dest, &vp_dest);
+      if (*yp < threshold) {
+        *yp_dest = 0;
+        *up_dest = 128;
+        *vp_dest = 128;
+      }
+    }
+  }
 }
 
 void obtainYUV(struct image_t *img, uint8_t *buffer, int x, int y, uint8_t **yp,
@@ -244,6 +271,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 //    image_ground_filler(&img2);
     make_black(&img2);
     image_to_grayscale(&img2, img);
+    avg_pool(img, img, 240, 4);
 
     int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
     image_convolution(img, &img2, kernel_gaussian, 16);
