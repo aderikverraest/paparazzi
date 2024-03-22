@@ -65,8 +65,8 @@ uint8_t downsample_factor = 4;
 // Drawing on image
 bool cf_draw = true;
 uint8_t y_ground_mask = 255;
-uint8_t u_ground_mask = 255;
-uint8_t v_ground_mask = 255;
+uint8_t u_ground_mask = 128;
+uint8_t v_ground_mask = 128;
 
 uint8_t cod_lum_min1 = 0;
 uint8_t cod_lum_max1 = 0;
@@ -231,7 +231,7 @@ static struct image_t *make_black(struct image_t *img) {
           for (uint16_t x = 0; x < img->w; x += 1) {
             obtainYUV(img, buffer, x, y, &yp, &up, &vp);
             // if not white then make black
-            if (*yp != 255 && *up != 255 && *vp != 255) {
+            if (*yp != y_ground_mask && *up != u_ground_mask && *vp != v_ground_mask) {
               *yp = 0;
               *up = 128;
               *vp = 128;
@@ -270,8 +270,8 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     uint32_t floor_count = image_ground_detector(img, &img2, &count_left, &count_right, &xMinG, &xMaxG);
 //    image_ground_filler(&img2);
     make_black(&img2);
-    image_to_grayscale(&img2, img);
-    avg_pool(img, img, 240, 4);
+//    image_to_grayscale(&img2, img);
+    avg_pool(&img2, img, 240, 4);
 
     int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
     image_convolution(img, &img2, kernel_gaussian, 16);
@@ -292,7 +292,7 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 //    generate_kernel(&img->eulers, kernel_edge);
     image_convolution(img, &img2, kernel_edge, 8);
     image_copy(&img2, img);
-
+    fprintf(stderr, "XMin: %i %Max: %i", xMinG, xMaxG);
     int* output = (int*) calloc(img->h, sizeof(int));
     unaligned_sum(&img2, output, &img->eulers, 1);
 //
