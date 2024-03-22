@@ -38,7 +38,7 @@ float oag_heading_rate;
 uint8_t chooseRandomIncrementAvoidance(void);
 
 // AVOID SETTINGS
-float floor_color_count_frac = 0.055f;       // obstacle detection threshold as a fraction of total of image
+float floor_color_count_frac = 0.085f;       // obstacle detection threshold as a fraction of total of image
 float cf_max_speed = 1.0;               // max flight speed [m/s]
 float speed_sp;
 float cf_heading_rate = RadOfDeg(15);

@@ -39,6 +39,7 @@ struct output_variables_object
 
 
     // Global Variables //
+void obtainYUV(struct image_t *img, uint8_t *buffer, int x, int y, uint8_t **yp, uint8_t **up, uint8_t **vp);
 
 // Define Mutex
 static pthread_mutex_t mutex;
@@ -123,6 +124,10 @@ uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uin
         Xmin = Xmin > y ? y: Xmin;
         Xmax = Xmax < y ? y: Xmax;
 
+      } else {
+          *yp_dest = 0;
+          *up_dest = 128;
+          *vp_dest = 128;
       }
       if (x < img->w / 2) {
         *count_left += 1;
@@ -156,32 +161,33 @@ uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uin
   return cnt;
 }
 
-void avg_pool(struct image_t *img, struct image_t *img_out, uint8_t threshold, uint8_t n_iterations) {
-  int_fast8_t avg_kernel[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
-  for (int i = 0; i < n_iterations; ++i) {
-    image_convolution(img, img_out, avg_kernel, 9);
-  }
-  threshold_img(img_out, img_out, threshold);
-}
-
 void threshold_img(struct image_t *img_in, struct image_t *img_out, uint8_t threshold) {
-  uint8_t *source = (uint8_t *)img_in->buf;
-  uint8_t *dest = (uint8_t *)img_out->buf;
+    uint8_t *source = (uint8_t *)img_in->buf;
+    uint8_t *dest = (uint8_t *)img_out->buf;
 
-  uint8_t *yp, *up, *vp;
-  uint8_t *yp_dest, *up_dest, *vp_dest;
-  for (uint16_t y = 0; y < img_in->h; y++) {
-    for (uint16_t x = 0; x < img_in->w; x++) {
-      obtainYUV(img_in, source, x, y, &yp, &up, &vp);
-      obtainYUV(img_out, dest, x, y, &yp_dest, &up_dest, &vp_dest);
-      if (*yp < threshold) {
-        *yp_dest = 0;
-        *up_dest = 128;
-        *vp_dest = 128;
-      }
+    uint8_t *yp, *up, *vp;
+    uint8_t *yp_dest, *up_dest, *vp_dest;
+    for (uint16_t y = 0; y < img_in->h; y++) {
+        for (uint16_t x = 0; x < img_in->w; x++) {
+            obtainYUV(img_in, source, x, y, &yp, &up, &vp);
+            obtainYUV(img_out, dest, x, y, &yp_dest, &up_dest, &vp_dest);
+            if (*yp < threshold) {
+                *yp_dest = 0;
+                *up_dest = 128;
+                *vp_dest = 128;
+            }
+        }
     }
-  }
 }
+
+void avg_pool(struct image_t *img, struct image_t *img_out, uint8_t threshold, uint8_t n_iterations) {
+      int_fast8_t avg_kernel[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+      for (int i = 0; i < n_iterations; i++) {
+            image_convolution(img, img_out, avg_kernel, 9);
+            threshold_img(img_out, img, threshold);
+      }
+}
+
 
 void obtainYUV(struct image_t *img, uint8_t *buffer, int x, int y, uint8_t **yp,
                uint8_t **up, uint8_t **vp) {
@@ -224,22 +230,6 @@ struct image_t *image_ground_filler(struct image_t *img) {
   return img;
 }
 
-static struct image_t *make_black(struct image_t *img) {
-        uint8_t *buffer = img->buf;
-        uint8_t *yp, *up, *vp;
-        for (uint16_t y = 0; y < img->h; y++) {
-          for (uint16_t x = 0; x < img->w; x += 1) {
-            obtainYUV(img, buffer, x, y, &yp, &up, &vp);
-            // if not white then make black
-            if (*yp != y_ground_mask && *up != u_ground_mask && *vp != v_ground_mask) {
-              *yp = 0;
-              *up = 128;
-              *vp = 128;
-            }
-          }
-        }
-        return img;
-}
 
     // Function Definitions
 static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
@@ -249,9 +239,6 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     struct image_t img_ds;
     downsample_yuv422(img, &img_ds, downsample_factor);
     image_copy(&img_ds, img);
-
-//    int16_t ground_top[img->w];
-    int* ground_top = (int*) calloc(img->h, sizeof(int));
 
     uint32_t count_left = 0;
     uint32_t count_right = 0;
@@ -269,21 +256,15 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 
     uint32_t floor_count = image_ground_detector(img, &img2, &count_left, &count_right, &xMinG, &xMaxG);
 //    image_ground_filler(&img2);
-    make_black(&img2);
-//    image_to_grayscale(&img2, img);
-    avg_pool(&img2, img, 240, 4);
+    image_copy(&img2, img);
+    avg_pool(img, &img3, 240, 4);
 
     int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
-    image_convolution(img, &img2, kernel_gaussian, 16);
-
-    image_copy(&img2, img);
-
 
     for (int i = 0; i < 2; ++i) {
         image_convolution(img, &img2, kernel_gaussian, 16);
         image_convolution(&img2, img, kernel_gaussian, 16);
     }
-    image_copy(img, &img3);
 
 //    Hardcode 90 deg edge detector
     int_fast8_t kernel_edge[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
@@ -292,22 +273,27 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 //    generate_kernel(&img->eulers, kernel_edge);
     image_convolution(img, &img2, kernel_edge, 8);
     image_copy(&img2, img);
+
     fprintf(stderr, "XMin: %i %Max: %i", xMinG, xMaxG);
-    int* output = (int*) calloc(img->h, sizeof(int));
-    unaligned_sum(&img2, output, &img->eulers, 1);
-//
+    int* edges_sum_array = (int*) calloc(img->h, sizeof(int));
+    u_int16_t* max_ground_height_array = (u_int16_t*) calloc(img->h, sizeof(u_int16_t));
+    unaligned_sum(&img2, edges_sum_array, &img->eulers, 1);
+
     int xMinE = 0;
     int xMaxE = 0;
-    heading_command(output, img->h, &xMinE, &xMaxE);
-    free(output);
+//    heading_command(output, xMinG, xMaxG, &xMinE, &xMaxE);
+    find_max_y(&img3, max_ground_height_array);
+    heading_command_v2(edges_sum_array, max_ground_height_array, xMinG, xMaxG, &xMinE, &xMaxE);
+    free(edges_sum_array);
+    free(max_ground_height_array);
 
     struct point_t Xmin;
     Xmin.x = (int) round(img->w / 2);
-    Xmin.y = xMinE > xMinG ? xMinE: xMinG;
+    Xmin.y = xMinE;
 
     struct point_t Xmax;
     Xmax.x = Xmin.x;
-    Xmax.y = xMaxE < xMaxG ? xMaxE: xMaxG;
+    Xmax.y = xMaxE;
 
     struct point_t Xmid;
     Xmid.x = Xmin.x;
