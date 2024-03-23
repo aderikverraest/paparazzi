@@ -26,7 +26,7 @@
     <file name="cascade_avoid.h"/>
   </header>
   <init fun="cascade_avoid_init()"/>
-  <periodic fun="cascade_avoid_periodic()" freq="20"/>
+  <periodic fun="cascade_avoid_periodic()" freq="100"/>
   <makefile target="ap|nps">
     <file name="cascade_avoid.c"/>
   </makefile>
