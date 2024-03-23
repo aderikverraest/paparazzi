@@ -175,6 +175,10 @@ void threshold_img(struct image_t *img_in, struct image_t *img_out, uint8_t thre
                 *yp_dest = 0;
                 *up_dest = 128;
                 *vp_dest = 128;
+            } else {
+                *yp_dest = 255;
+                *up_dest = 128;
+                *vp_dest = 128;
             }
         }
     }
