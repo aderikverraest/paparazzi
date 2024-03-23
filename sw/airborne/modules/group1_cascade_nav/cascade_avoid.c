@@ -38,7 +38,7 @@ float oag_heading_rate;
 uint8_t chooseRandomIncrementAvoidance(void);
 
 // AVOID SETTINGS
-float floor_color_count_frac = 0.065f;       // obstacle detection threshold as a fraction of total of image
+float floor_color_count_frac = 0.1f;       // obstacle detection threshold as a fraction of total of image
 float cf_max_speed = 0.75;               // max flight speed [m/s]
 float speed_sp;
 float cf_heading_rate = RadOfDeg(40.f); // Out of bounds heading rate [rad/s]
@@ -110,7 +110,7 @@ void cascade_avoid_periodic(void)
     // compute current color thresholds
     int32_t floor_count_threshold = floor_color_count_frac * img_w * img_h;
     int32_t floor_count_threshold_reenter = 1.5 * floor_color_count_frac * img_w * img_h;
-    int32_t floor_count_threshold_turn = 2 * floor_color_count_frac * img_w * img_h;
+    int32_t floor_count_threshold_turn = 1.5 * floor_color_count_frac * img_w * img_h;
     int32_t nav_command_threshold = 20;
     fprintf(stderr, "Floor Count: %d  Threshold: %d State: %d \n", floor_count, floor_count_threshold, navigation_state);
 
@@ -127,14 +127,14 @@ void cascade_avoid_periodic(void)
             if (floor_count < floor_count_threshold){
                 navigation_state = OUT_OF_BOUNDS;
             }
-            else if (floor_count < floor_count_threshold_turn && floor_count > floor_count_threshold)
+            else if (floor_count < floor_count_threshold_turn && floor_count >= floor_count_threshold)
             {
 //              guidance_h_set_heading_rate((nav_command/100)*cf_max_heading_rate);
               fprintf(stderr, "GOOD STATE");
               chooseRandomIncrementAvoidance();
               // Increase heading rate linearly between floor_count_threshold_turn and floor_count_threshold
-              float slope = cf_max_heading_rate / (floor_count_threshold_turn - floor_count_threshold);
-              float bias = slope * floor_count_threshold_turn;
+              float slope = cf_max_heading_rate / (floor_count_threshold - floor_count_threshold_turn);
+              float bias = -slope * floor_count_threshold_turn;
               guidance_h_set_heading_rate((slope * floor_count + bias) * avoidance_heading_direction);
 
               // Decrease speed linearly between floor_count_threshold_turn and floor_count_threshold
