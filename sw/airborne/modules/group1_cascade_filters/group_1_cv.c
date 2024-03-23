@@ -452,17 +452,14 @@ void downsample_yuv422(struct image_t* input, struct image_t* output, uint8_t do
 void find_max_y(struct image_t* input, uint16_t* output) {
     u_int8_t* source = input->buf;
     source ++;
-    //fprintf(stderr, "\n");
 
     for (int i = 0; i < input->h; ++i) {
         for (int j = 0; j < input->w; j++) {
             if (*source > 0) *output = j;
             source += 2;
         }
-        //fprintf(stderr, "%d, ", *output);
         output++;
     }
-    //fprintf(stderr, "\n");
 }
 
 
@@ -513,4 +510,21 @@ void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_
 
     *xMin = x_min;
     *xMax = x_max;
+}
+
+
+void fill_green_below_max(struct image_t* image, const u_int16_t* y_input) {
+    //  Set color detected image equal to 255 below the maximum y-value, this effectively filters out the carpet for
+    //  the edge detection following hereafter
+
+    u_int8_t *source = image->buf;
+    source++;
+
+    for (int i = 0; i < image->h; ++i) {
+        for (int j = 0; j < y_input[i]; ++j) {
+            *source = 255;
+            source += 2;
+        }
+        source += (2 * (image->w - y_input[i]));
+    }
 }

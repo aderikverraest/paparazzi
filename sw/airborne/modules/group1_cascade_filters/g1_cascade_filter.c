@@ -262,7 +262,15 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     uint32_t floor_count = image_ground_detector(img, &img2, &count_left, &count_right, &xMinG, &xMaxG);
 //    image_ground_filler(&img2);
     image_copy(&img2, img);
-    avg_pool(img, &img3, 240, 4);
+    avg_pool(img, &img3, 230, 4);
+
+    u_int16_t* max_ground_height_array = (u_int16_t*) calloc(img->h, sizeof(u_int16_t));
+
+    find_max_y(&img3, max_ground_height_array);
+
+    fill_green_below_max(img, max_ground_height_array);
+
+    image_copy(img, &img3);  // TODO: remove this for testing only
 
     int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
 
@@ -281,13 +289,11 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 
     fprintf(stderr, "XMin: %i %Max: %i", xMinG, xMaxG);
     int* edges_sum_array = (int*) calloc(img->h, sizeof(int));
-    u_int16_t* max_ground_height_array = (u_int16_t*) calloc(img->h, sizeof(u_int16_t));
     unaligned_sum(&img2, edges_sum_array, &img->eulers, 1);
 
     int xMinE = 0;
     int xMaxE = 0;
 //    heading_command(output, xMinG, xMaxG, &xMinE, &xMaxE);
-    find_max_y(&img3, max_ground_height_array);
     heading_command_v2(edges_sum_array, max_ground_height_array, xMinG, xMaxG, &xMinE, &xMaxE);
     free(edges_sum_array);
     free(max_ground_height_array);
