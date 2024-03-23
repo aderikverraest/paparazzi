@@ -452,13 +452,17 @@ void downsample_yuv422(struct image_t* input, struct image_t* output, uint8_t do
 void find_max_y(struct image_t* input, uint16_t* output) {
     u_int8_t* source = input->buf;
     source ++;
+    //fprintf(stderr, "\n");
 
     for (int i = 0; i < input->h; ++i) {
-        for (int j = input->w - 1; j >= 0; j -= 2) {
-            if (!*source) *output = input->w - j;
+        for (int j = 0; j < input->w; j++) {
+            if (*source > 0) *output = j;
+            source += 2;
         }
+        //fprintf(stderr, "%d, ", *output);
         output++;
     }
+    //fprintf(stderr, "\n");
 }
 
 
