@@ -190,6 +190,7 @@ void avg_pool(struct image_t *img, struct image_t *img_out, uint8_t threshold, u
             image_convolution(img, img_out, avg_kernel, 9);
             threshold_img(img_out, img, threshold);
       }
+      image_copy(img, img_out);
 }
 
 
