@@ -39,12 +39,12 @@ uint8_t chooseRandomIncrementAvoidance(void);
 
 // AVOID SETTINGS
 float floor_color_count_frac = 0.1f;       // obstacle detection threshold as a fraction of total of image
-float cf_max_speed = 1;               // max flight speed [m/s]
+float cf_max_speed = 1.7;               // max flight speed [m/s]
 float speed_sp;
 float cf_heading_rate = RadOfDeg(80.f); // Out of bounds heading rate [rad/s]
 float cf_max_heading_rate = RadOfDeg(80.f);  // Max heading rate for turning when near edge or obstacle [rad/s]
 float cf_max_safe_heading_rate = RadOfDeg(40.f); // Max heading rate for turning towards biggest gap [rad/s]
-float cf_max_safe_sideways = 0.5;  // maximum safe sideways velocity in [factor] (multiplies with speed_sp)
+float cf_max_safe_sideways = 1.0;  // maximum safe sideways velocity in [factor] (multiplies with speed_sp)
 const int16_t max_trajectory_confidence = 5;  // number of consecutive negative object detections to be sure we are obstacle free
 
 
@@ -112,7 +112,7 @@ void cascade_avoid_periodic(void)
     int32_t floor_count_threshold = floor_color_count_frac * img_w * img_h;
     int32_t floor_count_threshold_reenter = 1.5 * floor_color_count_frac * img_w * img_h;
     int32_t floor_count_threshold_turn = 1.5 * floor_color_count_frac * img_w * img_h;
-    int32_t floor_count_threshold_vel = 2 * floor_color_count_frac * img_w * img_h;
+    int32_t floor_count_threshold_vel = cf_max_speed * 2 * floor_color_count_frac * img_w * img_h;
     int32_t nav_command_threshold = 20;
     fprintf(stderr, "Floor Count: %d  Threshold: %d State: %d \n", floor_count, floor_count_threshold, navigation_state);
 
@@ -146,7 +146,7 @@ void cascade_avoid_periodic(void)
               // Increase heading rate linearly between floor_count_threshold_turn and floor_count_threshold
               float slope = cf_max_heading_rate / (floor_count_threshold - floor_count_threshold_turn);
               float bias = -slope * floor_count_threshold_turn;
-              guidance_h_set_heading_rate((slope * floor_count + bias) * avoidance_heading_direction);
+              guidance_h_set_heading_rate((slope * floor_count + bias) * avoidance_heading_direction * cf_max_speed);
 
               // Decrease speed linearly between floor_count_threshold_vel and floor_count_threshold
               fprintf(stderr, "Speed: %f Heading Rate: %f \n", speed_sp,
@@ -157,8 +157,9 @@ void cascade_avoid_periodic(void)
             }
             else {
                 // Steering plus forward speed
-                guidance_h_set_heading_rate((nav_command/100)*cf_max_safe_heading_rate);
-                fprintf(stderr, "Speed: %f Heading Rate: %f \n", speed_sp, (nav_command/100)*cf_max_safe_heading_rate);
+                guidance_h_set_heading_rate((nav_command/100) * cf_max_safe_heading_rate * cf_max_speed);
+                fprintf(stderr, "Speed: %f Heading Rate: %f \n", speed_sp,
+                        (nav_command/100) * cf_max_safe_heading_rate * cf_max_speed);
                 guidance_h_set_body_vel(speed_sp, (nav_command/100) * speed_sp * cf_max_safe_sideways);
             }
 
@@ -185,7 +186,7 @@ void cascade_avoid_periodic(void)
         case OUT_OF_BOUNDS:
             chooseRandomIncrementAvoidance();
             // stop
-            guidance_h_set_body_vel(0, 0);
+            guidance_h_set_body_vel(0, 0.2 * cf_max_speed * cf_max_safe_sideways * avoidance_heading_direction);
 
             // start turn back into arena
             guidance_h_set_heading_rate(avoidance_heading_direction * cf_heading_rate);
