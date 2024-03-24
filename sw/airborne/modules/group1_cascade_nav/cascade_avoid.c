@@ -44,6 +44,7 @@ float speed_sp;
 float cf_heading_rate = RadOfDeg(40.f); // Out of bounds heading rate [rad/s]
 float cf_max_heading_rate = RadOfDeg(40.f);  // Max heading rate for turning when near edge or obstacle [rad/s]
 float cf_max_safe_heading_rate = RadOfDeg(40.f); // Max heading rate for turning towards biggest gap [rad/s]
+float cf_max_safe_sideways = 0.5;  // maximum safe sideways velocity in [factor] (multiplies with speed_sp)
 const int16_t max_trajectory_confidence = 5;  // number of consecutive negative object detections to be sure we are obstacle free
 
 
@@ -119,6 +120,7 @@ void cascade_avoid_periodic(void)
         speed_sp = cf_max_speed;
     } else {
         speed_sp = 0;
+        // TODO: scale linearly
     }
 
 
@@ -142,13 +144,13 @@ void cascade_avoid_periodic(void)
               float bias_v = -slope_v * floor_count_threshold;
               speed_sp = slope_v * floor_count + bias_v;
               fprintf(stderr, "Speed: %f Heading Rate: %f \n", speed_sp, (slope * floor_count + bias) * avoidance_heading_direction);
-              guidance_h_set_body_vel(speed_sp, 0);
+              guidance_h_set_body_vel(speed_sp, speed_sp * cf_max_safe_sideways * (slope * floor_count + bias) * avoidance_heading_direction);
             }
             else {
                 // Steering plus forward speed
                 guidance_h_set_heading_rate((nav_command/100)*cf_max_safe_heading_rate);
                 fprintf(stderr, "Speed: %f Heading Rate: %f \n", speed_sp, (nav_command/100)*cf_max_safe_heading_rate);
-                guidance_h_set_body_vel(speed_sp, 0);
+                guidance_h_set_body_vel(speed_sp, (nav_command/100) * speed_sp * cf_max_safe_sideways);
             }
 
             break;
