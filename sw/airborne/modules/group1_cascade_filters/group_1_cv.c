@@ -3,7 +3,7 @@
 #include "modules/group1_cascade_filters/group_1_cv.h"
 
 int edge_threshold = 300;
-int epsilon = 30;
+int epsilon = 7;
 
 
 uint8_t ker_mul(uint8_t const *source, int_fast8_t const *kernel, uint8_t total, uint8_t setting, int width, int YUV) {
@@ -449,32 +449,36 @@ void downsample_yuv422(struct image_t* input, struct image_t* output, uint8_t do
 }
 
 
-void find_max_y(struct image_t* input, uint16_t* output) {
+uint32_t find_max_y(struct image_t* input, uint16_t* output) {
     u_int8_t* source = input->buf;
     source ++;
+    uint32_t count = 0;
 
     for (int i = 0; i < input->h; ++i) {
         for (int j = 0; j < input->w; j++) {
             if (*source > 0) *output = j;
             source += 2;
         }
+        count += *output;
         output++;
     }
+
+    return count;
 }
 
 
-void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_t start, uint16_t end, int *xMin, int *xMax) {
+void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_t start, uint16_t end, int *xMin, int *xMax, int *maxGreen) {
     int x_min, x_max, current_start;
     int current_len = 0;
     int max_len = 0;
-    uint8_t min_len = 20;
+    uint8_t min_len = 5;
     int avg_green = 0;
     int max_green = 0;
 
     int i;
     for (i = start; i < end; ++i) {
         if (*edge_input++ < edge_threshold) {
-            if (!current_len) current_start = i;
+            if (current_len == 0) current_start = i;
             current_len += 1;
         } else {
             if (current_len > min_len) {
@@ -482,7 +486,7 @@ void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_
                 for (int j = current_start; j < i; ++j) {
                     avg_green += y_input[j];
                 }
-                avg_green = (avg_green / current_len) + epsilon;
+                avg_green = (int) avg_green / (current_len + epsilon);
 
                 if (avg_green > max_green) {
                     max_green = avg_green;
@@ -499,7 +503,7 @@ void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_
         for (int j = current_start; j < i; ++j) {
             avg_green += y_input[j];
         }
-        avg_green = (avg_green / current_len) + epsilon;
+        avg_green = (int) avg_green / (current_len + epsilon);
 
         if (avg_green > max_green) {
             max_green = avg_green;
@@ -510,6 +514,7 @@ void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_
 
     *xMin = x_min;
     *xMax = x_max;
+    *maxGreen = max_green;
 }
 
 
