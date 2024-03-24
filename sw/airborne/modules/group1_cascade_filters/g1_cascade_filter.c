@@ -262,11 +262,11 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     uint32_t floor_count = image_ground_detector(img, &img2, &count_left, &count_right, &xMinG, &xMaxG);
 //    image_ground_filler(&img2);
     image_copy(&img2, img);
-    avg_pool(img, &img3, 230, 4);
+    avg_pool(img, &img3, 220, 1);
 
     u_int16_t* max_ground_height_array = (u_int16_t*) calloc(img->h, sizeof(u_int16_t));
 
-    find_max_y(&img3, max_ground_height_array);
+    floor_count = find_max_y(&img3, max_ground_height_array);
 
     fill_green_below_max(img, max_ground_height_array);
 
@@ -293,8 +293,9 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
 
     int xMinE = 0;
     int xMaxE = 0;
+    int maxGreen = 0;
 //    heading_command(output, xMinG, xMaxG, &xMinE, &xMaxE);
-    heading_command_v2(edges_sum_array, max_ground_height_array, xMinG, xMaxG, &xMinE, &xMaxE);
+    heading_command_v2(edges_sum_array, max_ground_height_array, xMinG, xMaxG, &xMinE, &xMaxE, &maxGreen);
     free(edges_sum_array);
     free(max_ground_height_array);
 
