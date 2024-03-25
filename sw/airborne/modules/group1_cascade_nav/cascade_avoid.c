@@ -38,13 +38,13 @@ float oag_heading_rate;
 uint8_t chooseRandomIncrementAvoidance(void);
 
 // AVOID SETTINGS
-float floor_color_count_frac = 0.1f;       // obstacle detection threshold as a fraction of total of image
-float cf_max_speed = 1.7;               // max flight speed [m/s]
+float floor_color_count_frac = 0.08f;       // obstacle detection threshold as a fraction of total of image
+float cf_max_speed = 1.0;               // max flight speed [m/s]
 float speed_sp;
 float cf_heading_rate = RadOfDeg(80.f); // Out of bounds heading rate [rad/s]
 float cf_max_heading_rate = RadOfDeg(80.f);  // Max heading rate for turning when near edge or obstacle [rad/s]
 float cf_max_safe_heading_rate = RadOfDeg(40.f); // Max heading rate for turning towards biggest gap [rad/s]
-float cf_max_safe_sideways = 1.0;  // maximum safe sideways velocity in [factor] (multiplies with speed_sp)
+float cf_max_safe_sideways = 0.5;  // maximum safe sideways velocity in [factor] (multiplies with speed_sp)
 const int16_t max_trajectory_confidence = 5;  // number of consecutive negative object detections to be sure we are obstacle free
 
 
@@ -186,7 +186,7 @@ void cascade_avoid_periodic(void)
         case OUT_OF_BOUNDS:
             chooseRandomIncrementAvoidance();
             // stop
-            guidance_h_set_body_vel(0, 0.2 * cf_max_speed * cf_max_safe_sideways * avoidance_heading_direction);
+            guidance_h_set_body_vel(0, 0);
 
             // start turn back into arena
             guidance_h_set_heading_rate(avoidance_heading_direction * cf_heading_rate);
