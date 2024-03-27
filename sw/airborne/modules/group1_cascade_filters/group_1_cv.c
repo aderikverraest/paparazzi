@@ -456,7 +456,7 @@ uint32_t find_max_y(struct image_t* input, uint16_t* output) {
 
     for (int i = 0; i < input->h; ++i) {
         for (int j = 0; j < input->w; j++) {
-            if (*source > 0) *output = j;
+            if (j < input->w/2 && *source > 0) *output = j;
             source += 2;
         }
         count += *output;
