@@ -113,7 +113,7 @@ void cascade_avoid_periodic(void)
     int32_t floor_count_threshold_reenter = 1.5 * floor_color_count_frac * img_w * img_h;
     int32_t floor_count_threshold_turn = 1.5 * floor_color_count_frac * img_w * img_h;
     int32_t floor_count_threshold_vel = cf_max_speed * 2 * floor_color_count_frac * img_w * img_h;
-    int32_t nav_command_threshold = 50;
+    int32_t nav_command_threshold = 40;
     fprintf(stderr, "Floor Count: %d  Threshold: %d State: %d \n", floor_count, floor_count_threshold, navigation_state);
 
 
