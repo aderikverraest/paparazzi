@@ -3,7 +3,7 @@
 #include "modules/group1_cascade_filters/group_1_cv.h"
 
 int edge_threshold = 300;
-int epsilon = 7;
+int epsilon = 20;
 
 
 uint8_t ker_mul(uint8_t const *source, int_fast8_t const *kernel, uint8_t total, uint8_t setting, int width, int YUV) {
