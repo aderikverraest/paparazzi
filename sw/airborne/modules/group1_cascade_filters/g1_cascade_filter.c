@@ -6,6 +6,7 @@
 //#define OBJECT_DETECTOR_VERBOSE 1
 #include "modules/group1_cascade_filters/g1_cascade_filter.h"
 #include "modules/group1_cascade_filters/group_1_cv.h"
+#include "modules/group1_cascade_filters/convolution.h"
 #include "modules/computer_vision/cv.h"
 #include "modules/core/abi.h"
 #include "modules/computer_vision/lib/vision/image.h"
@@ -53,7 +54,7 @@ uint8_t downsample_factor = 4;
 
 
     // Function Definitions
-static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
+static struct image_t* cascade_filter(struct image_t* img, uint8_t __attribute__((unused)) filter)
 {
     // Down sampling
     struct image_t img_ds;
@@ -94,15 +95,15 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     // 4 times 3x3 gaussion blur to approximate 9x9 gaussian blur
     int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
     for (int i = 0; i < 2; ++i) {
-        image_convolution(img, &img2, kernel_gaussian, 16);
-        image_convolution(&img2, img, kernel_gaussian, 16);
+        image_convolution_3x3(img, &img2, kernel_gaussian, 16);
+        image_convolution_3x3(&img2, img, kernel_gaussian, 16);
     }
 
     // Sobel kernel for horizontal edges in the image (Representing vertical edges in real life)
     int_fast8_t kernel_edge[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
 
     // Edge Detection
-    image_convolution(img, &img2, kernel_edge, 8);
+    image_convolution_3x3(img, &img2, kernel_edge, 8);
     image_copy(&img2, img);
 
     fprintf(stderr, "iMin: %d iMax: %d", iMinG, iMaxG);

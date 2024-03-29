@@ -16,8 +16,6 @@ extern uint8_t v_min;
 extern uint8_t v_max;
 extern int edge_threshold;
 
-uint8_t ker_mul(uint8_t const *source, int_fast8_t const *kernel, uint8_t total, uint8_t setting, int width, int YUV);
-void image_convolution(struct image_t *input, struct image_t *output, int_fast8_t const *kernel, uint8_t kernel_total);
 void assign_kernel_values(int_fast8_t const *kernel_r, int_fast8_t *kernel);
 void generate_kernel (struct FloatEulers const *angles, int_fast8_t *kernel);
 void unaligned_sum(struct image_t *input, int *output, struct FloatEulers *angles, int axis);
