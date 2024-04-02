@@ -35,13 +35,15 @@ float oag_max_speed;         // max flight speed [m/s]
 float oag_heading_rate;
 
 // DECLARE FUNCTIONS
-uint8_t chooseRandomIncrementAvoidance(void);
+uint8_t chooseDirection(void);
 
 // AVOID SETTINGS
 float floor_color_count_frac = 0.08f;       // obstacle detection threshold as a fraction of total of image
 float cf_max_speed = 1.0;               // max flight speed [m/s]
 float speed_sp;
+float side_speed_sp;
 float cf_heading_rate = RadOfDeg(80.f); // Out of bounds heading rate [rad/s]
+float heading_rate;
 float cf_max_heading_rate = RadOfDeg(80.f);  // Max heading rate for turning when near edge or obstacle [rad/s]
 float cf_max_safe_heading_rate = RadOfDeg(40.f); // Max heading rate for turning towards biggest gap [rad/s]
 float cf_max_safe_sideways = 0.5;  // maximum safe sideways velocity in [factor] (multiplies with speed_sp)
@@ -90,7 +92,7 @@ void cascade_avoid_init(void)
     // Initialise random values
     srand(time(NULL));
     guidance_h_set_pos(0, 0);
-    chooseRandomIncrementAvoidance();
+    chooseDirection();
 
     // bind our cascade filter callbacks to receive the cascade filter outputs
     AbiBindMsgVISUAL_DETECTION(CASCADE_FILTER_ID, &cascade_filter_ev, cascade_filter_cb);
@@ -123,9 +125,7 @@ void cascade_avoid_periodic(void)
         if (floor_count > floor_count_threshold_vel) {
             speed_sp = cf_max_speed;
         } else {
-            float slope_v = cf_max_speed / (floor_count_threshold_vel - floor_count_threshold);
-            float bias_v = -slope_v * floor_count_threshold;
-            speed_sp = slope_v * floor_count + bias_v;
+            speed_sp = cf_max_speed / (floor_count_threshold_vel - floor_count_threshold) * (floor_count - floor_count_threshold);
         }
     } else {
         speed_sp = 0;
@@ -137,23 +137,21 @@ void cascade_avoid_periodic(void)
         case SAFE:
             if (floor_count < floor_count_threshold){
                 navigation_state = OUT_OF_BOUNDS;
+                chooseDirection();
             }
+            // Floor count not low enough for out of bounds but low enough that we might need to turn
             else if (floor_count < floor_count_threshold_turn && floor_count >= floor_count_threshold)
             {
-//              guidance_h_set_heading_rate((nav_command/100)*cf_max_heading_rate);
-              fprintf(stderr, "GOOD STATE");
-              chooseRandomIncrementAvoidance();
+              chooseDirection();
               // Increase heading rate linearly between floor_count_threshold_turn and floor_count_threshold
-              float slope = cf_max_heading_rate / (floor_count_threshold - floor_count_threshold_turn);
-              float bias = -slope * floor_count_threshold_turn;
-              guidance_h_set_heading_rate((slope * floor_count + bias) * avoidance_heading_direction * cf_max_speed);
+              heading_rate = cf_max_heading_rate / (floor_count_threshold - floor_count_threshold_turn) * (floor_count - floor_count_threshold);
+              guidance_h_set_heading_rate(heading_rate * avoidance_heading_direction * cf_max_speed);
 
               // Decrease speed linearly between floor_count_threshold_vel and floor_count_threshold
-              fprintf(stderr, "Speed: %f Heading Rate: %f \n", speed_sp,
-                      (slope * floor_count + bias) * avoidance_heading_direction);
-              guidance_h_set_body_vel(speed_sp, speed_sp * cf_max_safe_sideways * (slope * floor_count + bias) *
-                                                avoidance_heading_direction);
+              fprintf(stderr, "Speed: %f Heading Rate: %f \n", speed_sp, heading_rate);
 
+              side_speed_sp = speed_sp * cf_max_safe_sideways * avoidance_heading_direction * heading_rate;
+              guidance_h_set_body_vel(speed_sp, side_speed_sp);
             }
             else {
                 // Steering plus forward speed
@@ -164,27 +162,7 @@ void cascade_avoid_periodic(void)
             }
 
             break;
-//        case OBSTACLE_FOUND:
-//            // stop
-//            guidance_h_set_body_vel(0, 0);
-//
-//            // randomly select new search direction
-//            chooseRandomIncrementAvoidance();
-//
-//            navigation_state = SEARCH_FOR_SAFE_HEADING;
-//
-//            break;
-        case SEARCH_FOR_SAFE_HEADING:
-            guidance_h_set_heading_rate(avoidance_heading_direction * oag_heading_rate);
-
-            // make sure we have a couple of good readings before declaring the way safe
-            if (obstacle_free_confidence >= 2){
-                guidance_h_set_heading(stateGetNedToBodyEulers_f()->psi);
-                navigation_state = SAFE;
-            }
-            break;
         case OUT_OF_BOUNDS:
-            chooseRandomIncrementAvoidance();
             // stop
             guidance_h_set_body_vel(0, 0);
 
@@ -195,7 +173,7 @@ void cascade_avoid_periodic(void)
 
             break;
         case REENTER_ARENA:
-//             force floor center to opposite side of turn to head back into arena
+            // force floor center to opposite side of turn to head back into arena
             if (floor_count >= floor_count_threshold_reenter) {
                 // return to heading mode
                 guidance_h_set_heading(stateGetNedToBodyEulers_f()->psi);
@@ -213,7 +191,7 @@ void cascade_avoid_periodic(void)
 /*
  * Sets the variable 'incrementForAvoidance' randomly positive/negative
  */
-uint8_t chooseRandomIncrementAvoidance(void)
+uint8_t chooseDirection(void)
 {
     // Randomly choose CW or CCW avoiding direction
     if (count_right > count_left) {
@@ -221,14 +199,6 @@ uint8_t chooseRandomIncrementAvoidance(void)
     } else {
         avoidance_heading_direction = -1.f;
     }
-//    if (rand() % 2 == 0) {
-//        avoidance_heading_direction = 1.f;
-//
-//        VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction * oag_heading_rate);
-//    } else {
-//        avoidance_heading_direction = -1.f;
-//        VERBOSE_PRINT("Set avoidance increment to: %f\n", avoidance_heading_direction * oag_heading_rate);
-//    }
     return false;
 }
 
