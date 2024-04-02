@@ -188,9 +188,6 @@ void cascade_avoid_periodic(void)
     return;
 }
 
-/*
- * Sets the variable 'incrementForAvoidance' randomly positive/negative
- */
 uint8_t chooseDirection(void)
 {
     // Randomly choose CW or CCW avoiding direction
