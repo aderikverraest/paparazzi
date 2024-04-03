@@ -6,6 +6,7 @@ The C-files of group 1 (excluding those used for testing) can be found in:
 * paparazzi/sw/airborne/modules/group1_cascade_filters
 * paparazzi/sw/airborne/modules/group1_cascade_nav
 
+The airframe used is group1_af_cascade_filter in airframes/tudelft
 
 Paparazzi UAS
 =============
