@@ -336,7 +336,7 @@ uint32_t find_max_y(struct image_t* input, uint16_t* output) {
  * @param iMax Maximal index of the most desirable gap
  * @param maxGreen Value with the most green
  */
-void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_t start, uint16_t end, int *iMin, int *iMax, int *maxGreen) {
+void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_t start, uint16_t end, int *iMin, int *iMax) {
     int i_min = 0, i_max = 0, current_start = 0, current_len = 0,  avg_green = 0, max_green = 0;
     uint8_t min_len = 5;
 
@@ -371,7 +371,6 @@ void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_
         avg_green = (int) avg_green / (current_len + epsilon);
 
         if (avg_green > max_green) {
-            max_green = avg_green;
             i_min = current_start;
             i_max = i;
         }
@@ -379,7 +378,6 @@ void heading_command_v2(const int* edge_input, const u_int16_t* y_input, uint16_
 
     *iMin = i_min;
     *iMax = i_max;
-    *maxGreen = max_green;
 }
 
 /**

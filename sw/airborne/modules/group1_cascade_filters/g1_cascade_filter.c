@@ -117,10 +117,9 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t __attribute__
     // Create index values
     int iMinE = 0;
     int iMaxE = 0;
-    int maxGreen = 0;  // # TODO: Argument existance
     //    heading_command(output, xMinG, xMaxG, &xMinE, &xMaxE); DEPRECATED HEADING GENERATION
     // Calculate the indices for the bounds between which the drone should fly
-    heading_command_v2(edges_sum_array, max_ground_height_array, iMinG, iMaxG, &iMinE, &iMaxE, &maxGreen);
+    heading_command_v2(edges_sum_array, max_ground_height_array, iMinG, iMaxG, &iMinE, &iMaxE);
 
     // Free allocated memory for arrays
     free(edges_sum_array);
