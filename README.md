@@ -1,5 +1,12 @@
 # MAIN README
 
+# Group 1 files
+
+The C-files of group 1 (excluding those used for testing) can be found in:
+* paparazzi/sw/airborne/modules/group1_cascade_filters
+* paparazzi/sw/airborne/modules/group1_cascade_nav
+
+
 Paparazzi UAS
 =============
 [![Build Status](https://paparazziuav.semaphoreci.com/badges/paparazzi/branches/master.svg?style=shields&key=d3a59143-a357-434e-89b8-057f15ed8dd2)](https://paparazziuav.semaphoreci.com/projects/paparazzi) [![Gitter chat](https://badges.gitter.im/paparazzi/discuss.svg)](https://gitter.im/paparazzi/discuss)
