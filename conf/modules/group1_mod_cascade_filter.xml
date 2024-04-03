@@ -45,6 +45,7 @@
   <makefile target="ap|nps">
     <file name="g1_cascade_filter.c"/>
     <file name="group_1_cv.c"/>
+    <file name="convolution.c"/>
   </makefile>
 </module>
 

@@ -5,8 +5,9 @@
 // Other files
 //#define OBJECT_DETECTOR_VERBOSE 1
 #include "modules/group1_cascade_filters/g1_cascade_filter.h"
-#include "modules/group1_cascade_filters/cv.h"
 #include "modules/group1_cascade_filters/group_1_cv.h"
+#include "modules/group1_cascade_filters/convolution.h"
+#include "modules/computer_vision/cv.h"
 #include "modules/core/abi.h"
 #include "modules/computer_vision/lib/vision/image.h"
 
@@ -38,216 +39,37 @@ struct output_variables_object
 };
 
 
-    // Global Variables //
-void obtainYUV(struct image_t *img, uint8_t *buffer, int x, int y, uint8_t **yp, uint8_t **up, uint8_t **vp);
-
+                                        // Global Variables //
 // Define Mutex
 static pthread_mutex_t mutex;
 
 // Define Global Memory
 struct output_variables_object global_memory[1];
 
-// Filter Thresholds (Default values if not defined in conf file)
-
-// Luma
-uint8_t y_min = 0;
-uint8_t y_max = 169;
-
-// Chroma Blue
-uint8_t u_min = 0;
-uint8_t u_max = 107;
-
-// Chroma Red
-uint8_t v_min = 0;
-uint8_t v_max = 146;
-
-uint8_t downsample_factor = 4;
-
 // Drawing on image
 bool cf_draw = true;
-uint8_t y_ground_mask = 255;
-uint8_t u_ground_mask = 128;
-uint8_t v_ground_mask = 128;
 
-uint8_t cod_lum_min1 = 0;
-uint8_t cod_lum_max1 = 0;
-uint8_t cod_cb_min1 = 0;
-uint8_t cod_cb_max1 = 0;
-uint8_t cod_cr_min1 = 0;
-uint8_t cod_cr_max1 = 0;
-
-uint8_t cod_lum_min2 = 0;
-uint8_t cod_lum_max2 = 0;
-uint8_t cod_cb_min2 = 0;
-uint8_t cod_cb_max2 = 0;
-uint8_t cod_cr_min2 = 0;
-uint8_t cod_cr_max2 = 0;
-bool cod_draw1 = false;
-bool cod_draw2 = false;
-
-      // Functions //
-    // Declarations
-uint32_t image_ground_detector(struct image_t *img, struct image_t *img_out, uint32_t *count_left, uint32_t *count_right, uint16_t *xmin, uint16_t *xmax) {
-  //  return img;
-//  uint8_t y_m = 0;
-//  uint8_t y_M = 255;
-//  uint8_t u_m = 0;
-//  uint8_t u_M = 110;
-//  uint8_t v_m = 0;
-//  uint8_t v_M = 130;
-  uint8_t y_m = y_min;
-  uint8_t y_M = y_max;
-  uint8_t u_m = u_min;
-  uint8_t u_M = u_max;
-  uint8_t v_m = v_min;
-  uint8_t v_M = v_max;
-
-  uint16_t cnt = 0;
-  uint8_t *source = (uint8_t *)img->buf;
-  uint8_t *dest = (uint8_t *)img_out->buf;
-
-  uint16_t Xmin = 255;
-  uint16_t Xmax = 0;
-
-  uint8_t *yp, *up, *vp;
-  uint8_t *yp_dest, *up_dest, *vp_dest;
-  for (uint16_t y = 0; y < img->h; y++) {
-    for (uint16_t x = 0; x < img->w; x++) {
-      obtainYUV(img, source, x, y, &yp, &up, &vp);
-      obtainYUV(img_out, dest, x, y, &yp_dest, &up_dest, &vp_dest);
-      if (*yp >= y_m && *yp <= y_M && *up >= u_m && *up <= u_M && *vp >= v_m &&
-          *vp <= v_M) {
-          cnt++;
-        *yp_dest = y_ground_mask;
-        *up_dest = u_ground_mask;
-        *vp_dest = v_ground_mask;
-        Xmin = Xmin > y ? y: Xmin;
-        Xmax = Xmax < y ? y: Xmax;
-
-      } else {
-          *yp_dest = 0;
-          *up_dest = 128;
-          *vp_dest = 128;
-      }
-      if (x < img->w / 2) {
-        *count_left += 1;
-      } else {
-        *count_right += 1;
-      }
-    }
-  }
-  // Go trough all the pixels
-  //  for (uint16_t y = 0; y < img->h; y++) {
-  //    for (uint16_t x = 0; x < img->w; x += 2) {
-  //      // Check if the color is inside the specified values
-  //      if ((dest[1] >= y_m) && (dest[1] <= y_M) && (dest[0] >= u_m) &&
-  //          (dest[0] <= u_M) && (dest[2] >= v_m) && (dest[2] <= v_M)) {
-  //        cnt++;
-  //        // UYVY
-  //        dest[0] = u_ground_mask; // U
-  //        dest[1] = y_ground_mask; // Y
-  //        dest[2] = v_ground_mask; // V
-  //        dest[3] = y_ground_mask; // Y
-  //      }
-  //
-  //      // Go to the next 2 pixels
-  //      dest += 4;
-  //    }
-  //  }
-
-  *xmin = Xmin;
-  *xmax = Xmax;
-
-  return cnt;
-}
-
-void threshold_img(struct image_t *img_in, struct image_t *img_out, uint8_t threshold) {
-    uint8_t *source = (uint8_t *)img_in->buf;
-    uint8_t *dest = (uint8_t *)img_out->buf;
-
-    uint8_t *yp, *up, *vp;
-    uint8_t *yp_dest, *up_dest, *vp_dest;
-    for (uint16_t y = 0; y < img_in->h; y++) {
-        for (uint16_t x = 0; x < img_in->w; x++) {
-            obtainYUV(img_in, source, x, y, &yp, &up, &vp);
-            obtainYUV(img_out, dest, x, y, &yp_dest, &up_dest, &vp_dest);
-            if (*yp < threshold) {
-                *yp_dest = 0;
-                *up_dest = 128;
-                *vp_dest = 128;
-            } else {
-                *yp_dest = 255;
-                *up_dest = 128;
-                *vp_dest = 128;
-            }
-        }
-    }
-}
-
-void avg_pool(struct image_t *img, struct image_t *img_out, uint8_t threshold, uint8_t n_iterations) {
-      int_fast8_t avg_kernel[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
-      for (int i = 0; i < n_iterations; i++) {
-            image_convolution(img, img_out, avg_kernel, 9);
-            threshold_img(img_out, img, threshold);
-      }
-      image_copy(img, img_out);
-}
-
-
-void obtainYUV(struct image_t *img, uint8_t *buffer, int x, int y, uint8_t **yp,
-               uint8_t **up, uint8_t **vp) {
-  if (x % 2 == 0) {
-    // Even x
-    *up = &buffer[y * 2 * img->w + 2 * x];     // U
-    *yp = &buffer[y * 2 * img->w + 2 * x + 1]; // Y1
-    *vp = &buffer[y * 2 * img->w + 2 * x + 2]; // V
-  } else {
-    // Uneven x
-    *up = &buffer[y * 2 * img->w + 2 * x - 2]; // U
-    *vp = &buffer[y * 2 * img->w + 2 * x];     // V
-    *yp = &buffer[y * 2 * img->w + 2 * x + 1]; // Y2
-  }
-}
-
-struct image_t *image_ground_filler(struct image_t *img) {
-  uint8_t *buffer = img->buf;
-  //  Only check up until horizon
-  uint16_t horizon = img->w / 2;
-  uint16_t top_x;
-  uint8_t *yp, *up, *vp;
-  for (uint16_t y = 0; y < img->h; y++) {
-    top_x = 0;
-    for (uint16_t x = 0; x < horizon; x += 1) {
-      obtainYUV(img, buffer, x, y, &yp, &up, &vp);
-      if (*yp == y_ground_mask && *up == u_ground_mask &&
-          *vp == v_ground_mask) {
-        top_x = x;
-      }
-    }
-
-    for (uint16_t x = 0; x < top_x; x += 1) {
-      obtainYUV(img, buffer, x, y, &yp, &up, &vp);
-      *yp = y_ground_mask;
-      *up = y_ground_mask;
-      *vp = y_ground_mask;
-    }
-  }
-  return img;
-}
+// Downsampling
+uint8_t downsample_factor = 4;
 
 
     // Function Definitions
-static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
+static struct image_t* cascade_filter(struct image_t* img, uint8_t __attribute__((unused)) filter)
 {
-
-    // DOWN SAMPLING
+    // Down sampling
     struct image_t img_ds;
     downsample_yuv422(img, &img_ds, downsample_factor);
     image_copy(&img_ds, img);
 
+    // Seperated floor count for turning information
     uint32_t count_left = 0;
     uint32_t count_right = 0;
-    // CONVOLUTIONS
+
+    // Minimal and maximal index between which the floor is found
+    uint16_t iMinG;
+    uint16_t iMaxG;
+
+    // Reserve images to copy output into
     struct image_t img2;
     struct image_t img3;
     image_create(&img2, img->w, img->h, img->type);
@@ -255,70 +77,79 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     image_copy(img, &img2);
     image_copy(img, &img3);
 
-    // Floor count
-    uint16_t xMinG;
-    uint16_t xMaxG;
-
-    uint32_t floor_count = image_ground_detector(img, &img2, &count_left, &count_right, &xMinG, &xMaxG);
-//    image_ground_filler(&img2);
+    // Floor counting
+    uint32_t floor_count = image_ground_detector(img, &img2, &count_left, &count_right, &iMinG, &iMaxG);
     image_copy(&img2, img);
+
+    // Average Pooling
     avg_pool(img, &img3, 220, 1);
 
+    // Array allocation for the maximal index at which the ground occurs
     u_int16_t* max_ground_height_array = (u_int16_t*) calloc(img->h, sizeof(u_int16_t));
 
+    // Floor counting and colouring
     floor_count = find_max_y(&img3, max_ground_height_array);
-
     fill_green_below_max(img, max_ground_height_array);
+    image_copy(img, &img3);
 
-    image_copy(img, &img3);  // TODO: remove this for testing only
-
+    // 4 times 3x3 gaussion blur to approximate 9x9 gaussian blur
     int_fast8_t kernel_gaussian[9] = {1, 2, 1, 2, 4, 2, 1, 2, 1};
-
     for (int i = 0; i < 2; ++i) {
-        image_convolution(img, &img2, kernel_gaussian, 16);
-        image_convolution(&img2, img, kernel_gaussian, 16);
+        image_convolution_3x3(img, &img2, kernel_gaussian, 16);
+        image_convolution_3x3(&img2, img, kernel_gaussian, 16);
     }
 
-//    Hardcode 90 deg edge detector
+    // Sobel kernel for horizontal edges in the image (Representing vertical edges in real life)
     int_fast8_t kernel_edge[9] = {-1, -2, -1, 0, 0, 0, 1, 2, 1};
 
-//    Temporarily removed rotated kernels
-//    generate_kernel(&img->eulers, kernel_edge);
-    image_convolution(img, &img2, kernel_edge, 8);
+    // Edge Detection
+    image_convolution_3x3(img, &img2, kernel_edge, 8);
     image_copy(&img2, img);
 
-    fprintf(stderr, "XMin: %i %Max: %i", xMinG, xMaxG);
+    fprintf(stderr, "iMin: %d iMax: %d", iMinG, iMaxG);
+
+    // Array allocation for the edge summation per row
     int* edges_sum_array = (int*) calloc(img->h, sizeof(int));
+
+    // Sum over the rows the get the vertical edge sum
     unaligned_sum(&img2, edges_sum_array, &img->eulers, 1);
 
-    int xMinE = 0;
-    int xMaxE = 0;
-    int maxGreen = 0;
-//    heading_command(output, xMinG, xMaxG, &xMinE, &xMaxE);
-    heading_command_v2(edges_sum_array, max_ground_height_array, xMinG, xMaxG, &xMinE, &xMaxE, &maxGreen);
+    // Create index values
+    int iMinE = 0;
+    int iMaxE = 0;
+    int maxGreen = 0;  // # TODO: Argument existance
+    //    heading_command(output, xMinG, xMaxG, &xMinE, &xMaxE); DEPRECATED HEADING GENERATION
+    // Calculate the indices for the bounds between which the drone should fly
+    heading_command_v2(edges_sum_array, max_ground_height_array, iMinG, iMaxG, &iMinE, &iMaxE, &maxGreen);
+
+    // Free allocated memory for arrays
     free(edges_sum_array);
     free(max_ground_height_array);
 
-    struct point_t Xmin;
-    Xmin.x = (int) round(img->w / 2);
-    Xmin.y = xMinE;
+    // Minimal point
+    struct point_t dir_min;
+    dir_min.x = (int) round(img->w / 2);
+    dir_min.y = iMinE;
 
-    struct point_t Xmax;
-    Xmax.x = Xmin.x;
-    Xmax.y = xMaxE;
+    // Maximal point
+    struct point_t dir_max;
+    dir_max.x = dir_min.x;
+    dir_max.y = iMaxE;
 
-    struct point_t Xmid;
-    Xmid.x = Xmin.x;
-    Xmid.y = (int) ((Xmin.y + Xmax.y) / 2);
+    // Centre point between the two
+    struct point_t dir_mid;
+    dir_mid.x = dir_min.x;
+    dir_mid.y = (int) ((dir_min.y + dir_max.y) / 2);
 
+    // Draw output on the appropriate image
     image_copy(&img3, img);
-    image_draw_line(img, &Xmin, &Xmax);
+    image_draw_line(img, &dir_min, &dir_max);
     uint8_t color[4] = {127, 255, 127, 255};
-    image_draw_crosshair(img, &Xmid, color, 10);
+    image_draw_crosshair(img, &dir_mid, color, 10);
 
 
-    // Create Nav Command
-    int32_t nav_command = Xmid.y - (img->h / 2); // Pixel direction
+    // Recenter the nav command around the middle of the image
+    int32_t nav_command = dir_mid.y - (img->h / 2); // Pixel direction
 
     // Normalization:
     // nav_command between -100 and 100 (-100 -> 60% of half)
@@ -340,7 +171,6 @@ static struct image_t* cascade_filter(struct image_t* img, uint8_t filter)
     global_memory[0].img_w = img->w;
     global_memory[0].img_h = img->h;
     pthread_mutex_unlock(&mutex);
-
 
     return img;
 }
